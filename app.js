@@ -1129,7 +1129,7 @@
     if(current?.startDate&&!saved.some(c=>c.startDate===current.startDate)){
       const result=latestResult||PayCalc.calculate(current);
       saved.push({...JSON.parse(JSON.stringify(current)),id:'current-unsaved',
-        summary:{gross:result.gross,taxable:result.taxable,tax:result.tax,hours:result.hours,net:result.net,netHourly:result.netHourly},
+        summary:{gross:result.gross,taxable:result.taxable,tax:result.tax,hours:result.hours,net:result.net,reimbursements:result.reimbursements,netHourly:result.netHourly},
         actualDeposit:'',notes:'',updatedAt:new Date().toISOString()});
     }
     return saved;
@@ -1906,7 +1906,7 @@ const perthShiftLabels={PN:'Perth Assist Arvo',PA:'Perth Afternoon',PD:'Perth As
       return;
     }
 
-    const order=['Night allowance','Morning allowance','Afternoon allowance','Higher duties'];
+    const order=['Night allowance','Morning allowance','Afternoon allowance','Early/late shift allowance','Higher duties','Other line allowance'];
     const groups=details.reduce((out,item)=>{
       (out[item.type]??=[]).push(item);
       return out;
@@ -1941,6 +1941,18 @@ const perthShiftLabels={PN:'Perth Assist Arvo',PA:'Perth Afternoon',PD:'Perth As
     list.appendChild(footer);
   }
 
+  function renderReimbursementBreakdown(details=[],cycleStart=current.startDate){
+    const list=$('#reimbursementBreakdownList');if(!list)return;list.innerHTML='';
+    if(!details.length){list.innerHTML='<div class="allowance-empty">No non-taxable reimbursements in this pay cycle.</div>';return}
+    details.forEach(item=>{
+      const date=parseDate(item.date),row=document.createElement('button');
+      row.type='button';row.className='allowance-audit-row';row.dataset.dayIndex=String(item.dayIndex);
+      row.innerHTML=`<span><b>${date.toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'})}</b><small>${item.code||'Shift'} • ${Number(item.distance||0).toFixed(2)} km @ ${money(item.rate)}/km</small></span><strong>${money(item.amount)}</strong>`;
+      if(cycleStart===current.startDate)row.onclick=()=>openRosterDay(item.dayIndex);else row.classList.add('read-only-audit');
+      list.appendChild(row);
+    });
+  }
+
   function renderPublicHolidayBreakdown(details=[]){
     const list=$('#publicHolidayBreakdownList');if(!list)return;list.innerHTML='';
     if(!details.length){list.innerHTML='<div class="allowance-empty">No public holiday entitlement in this pay cycle.</div>';return}
@@ -1971,7 +1983,7 @@ const perthShiftLabels={PN:'Perth Assist Arvo',PA:'Perth Afternoon',PD:'Perth As
           : `${d.name} • ${row.start}–${row.finish}${earlyText}${addText}${forcedText}`;
       }
     });
-    $('#workedPay').textContent=money(latestResult.breakdown.workedPay);$('#publicHolidayPay').textContent=money(latestResult.breakdown.publicHolidayPay);renderPublicHolidayBreakdown(latestResult.publicHolidayDetails);$('#annualLeavePay').textContent=money(latestResult.breakdown.annualLeavePay);$('#sickLeavePay').textContent=money(latestResult.breakdown.sickLeavePay);$('#lslPay').textContent=money(latestResult.breakdown.lslPay);$('#lwopPay').textContent=money(latestResult.breakdown.lwopPay);$('#extrasPay').textContent=money(latestResult.breakdown.extrasPay);renderAllowanceBreakdown(latestResult.allowanceDetails);$('#additionalHoursPay').textContent=money(latestResult.breakdown.additionalHoursPay);$('#gross').textContent=money(latestResult.gross);
+    $('#workedPay').textContent=money(latestResult.breakdown.workedPay);$('#publicHolidayPay').textContent=money(latestResult.breakdown.publicHolidayPay);renderPublicHolidayBreakdown(latestResult.publicHolidayDetails);$('#annualLeavePay').textContent=money(latestResult.breakdown.annualLeavePay);$('#sickLeavePay').textContent=money(latestResult.breakdown.sickLeavePay);$('#lslPay').textContent=money(latestResult.breakdown.lslPay);$('#lwopPay').textContent=money(latestResult.breakdown.lwopPay);$('#extrasPay').textContent=money(latestResult.breakdown.extrasPay);renderAllowanceBreakdown(latestResult.allowanceDetails);$('#reimbursementsPay').textContent=money(latestResult.reimbursements);renderReimbursementBreakdown(latestResult.reimbursementDetails);$('#additionalHoursPay').textContent=money(latestResult.breakdown.additionalHoursPay);$('#gross').textContent=money(latestResult.gross);
     $('#taxable').textContent=money(latestResult.taxable);
     $('#tax').textContent=money(latestResult.tax);
     $('#hours').textContent=latestResult.hours.toFixed(1);
@@ -2011,7 +2023,7 @@ const perthShiftLabels={PN:'Perth Assist Arvo',PA:'Perth Afternoon',PD:'Perth As
     const record={
       ...JSON.parse(JSON.stringify(current)),
       id,
-      summary:{gross:latestResult.gross,taxable:latestResult.taxable,tax:latestResult.tax,hours:latestResult.hours,net:latestResult.net,netHourly:latestResult.netHourly},
+      summary:{gross:latestResult.gross,taxable:latestResult.taxable,tax:latestResult.tax,hours:latestResult.hours,net:latestResult.net,reimbursements:latestResult.reimbursements,netHourly:latestResult.netHourly},
       status:previous.status||'current',
       actualDeposit:previous.actualDeposit??'',
       notes:previous.notes||'',
@@ -2174,7 +2186,7 @@ const perthShiftLabels={PN:'Perth Assist Arvo',PA:'Perth Afternoon',PD:'Perth As
     renderPublicHolidayBreakdown(result.publicHolidayDetails);$('#annualLeavePay').textContent=money(result.breakdown.annualLeavePay);
     $('#sickLeavePay').textContent=money(result.breakdown.sickLeavePay);$('#lslPay').textContent=money(result.breakdown.lslPay);
     $('#lwopPay').textContent=money(result.breakdown.lwopPay);$('#extrasPay').textContent=money(result.breakdown.extrasPay);
-    renderAllowanceBreakdown(result.allowanceDetails,cycle.startDate);$('#additionalHoursPay').textContent=money(result.breakdown.additionalHoursPay);
+    renderAllowanceBreakdown(result.allowanceDetails,cycle.startDate);$('#reimbursementsPay').textContent=money(result.reimbursements);renderReimbursementBreakdown(result.reimbursementDetails,cycle.startDate);$('#additionalHoursPay').textContent=money(result.breakdown.additionalHoursPay);
     $('#gross').textContent=money(result.gross);$('#taxable').textContent=money(result.taxable);$('#tax').textContent=money(result.tax);
     $('#hours').textContent=result.hours.toFixed(1);$('#net').textContent=money(result.net);$('#netHourly').textContent=money(result.netHourly);
     renderFinancialYearSummary(cycle);
@@ -2264,7 +2276,7 @@ const perthShiftLabels={PN:'Perth Assist Arvo',PA:'Perth Afternoon',PD:'Perth As
     saveCurrent();
     const payload={
       app:'PTA ShiftMate',
-      version:'3.1.9-roster-time-fix',
+      version:'3.1.10-offline-allowance-fix',
       exportedAt:new Date().toISOString(),
       current:AppStorage.loadCurrent(),
       cycles:AppStorage.loadCycles()

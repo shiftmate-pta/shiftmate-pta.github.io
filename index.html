@@ -8,9 +8,9 @@
 <meta content="ShiftMate" name="apple-mobile-web-app-title"/>
 <meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"/>
 <title>ShiftMate</title>
-<link href="styles.css?v=3.1.9-roster-time-fix" rel="stylesheet"/>
-<link href="apple-touch-icon.png?v=3.1.9-roster-time-fix" rel="apple-touch-icon"/>
-<link href="manifest.json?v=3.1.9-roster-time-fix" rel="manifest"/>
+<link href="styles.css?v=3.1.10-offline-allowance-fix" rel="stylesheet"/>
+<link href="apple-touch-icon.png?v=3.1.10-offline-allowance-fix" rel="apple-touch-icon"/>
+<link href="manifest.json?v=3.1.10-offline-allowance-fix" rel="manifest"/>
 <meta content="#05090b" name="theme-color"/>
 </head>
 <body>
@@ -133,6 +133,13 @@
 <strong id="extrasPay">$0.00</strong>
 </summary>
 <div class="allowance-breakdown-list" id="allowanceBreakdownList"></div>
+</details>
+<details class="allowance-breakdown">
+<summary>
+<span>Non-taxable reimbursements</span>
+<strong id="reimbursementsPay">$0.00</strong>
+</summary>
+<div class="allowance-breakdown-list" id="reimbursementBreakdownList"></div>
 </details>
 <div><span>Additional hours</span><strong id="additionalHoursPay">$0.00</strong></div>
 <div><span>Taxable pay</span><strong id="taxable">$0.00</strong></div>
@@ -299,7 +306,7 @@
 </details>
 <details class="settings-section">
 <summary><span>About</span><small>ShiftMate app information</small></summary>
-<div class="settings-note settings-wide"><strong>ShiftMate</strong><br/>Version 3.1.9</div>
+<div class="settings-note settings-wide"><strong>ShiftMate</strong><br/>Version 3.1.10</div>
 </details>
 <div class="action-grid settings-actions">
 <button class="primary" id="saveCurrent">Save settings</button>
@@ -382,9 +389,9 @@
 <button class="nav-button" data-go="settings"><span class="nav-icon">⚙</span><span>Settings</span></button>
 </nav>
 <script src="agreementData.js?v=8.3"></script>
-<script src="shiftData.js?v=1.0.14"></script>
-<script src="payCalculator.js?v=1.0.14"></script>
+<script src="shiftData.js?v=1.0.15"></script>
+<script src="payCalculator.js?v=1.0.15"></script>
 <script src="storage.js?v=8.3"></script>
-<script src="app.js?v=3.1.9-roster-time-fix"></script>
+<script src="app.js?v=3.1.10-offline-allowance-fix"></script>
 </body>
 </html>
