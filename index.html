@@ -8,9 +8,9 @@
 <meta content="ShiftMate" name="apple-mobile-web-app-title"/>
 <meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"/>
 <title>ShiftMate</title>
-<link href="styles.css?v=3.1.10-offline-allowance-fix" rel="stylesheet"/>
-<link href="apple-touch-icon.png?v=3.1.10-offline-allowance-fix" rel="apple-touch-icon"/>
-<link href="manifest.json?v=3.1.10-offline-allowance-fix" rel="manifest"/>
+<link href="styles.css?v=3.1.12-pay-calculations" rel="stylesheet"/>
+<link href="apple-touch-icon.png?v=3.1.12-pay-calculations" rel="apple-touch-icon"/>
+<link href="manifest.json?v=3.1.12-pay-calculations" rel="manifest"/>
 <meta content="#05090b" name="theme-color"/>
 </head>
 <body>
@@ -127,6 +127,7 @@
 <summary><span>Public holidays</span><strong id="publicHolidayPay">$0.00</strong></summary>
 <div class="allowance-breakdown-list" id="publicHolidayBreakdownList"></div>
 </details>
+<details class="allowance-breakdown"><summary>Leave calculation and deductions</summary><div class="allowance-breakdown-list" id="leaveCalculationAudit"></div></details>
 <details class="allowance-breakdown">
 <summary>
 <span>Allowances &amp; higher duties</span>
@@ -136,7 +137,7 @@
 </details>
 <details class="allowance-breakdown">
 <summary>
-<span>Non-taxable reimbursements</span>
+<span>Mileage — withholding unverified</span>
 <strong id="reimbursementsPay">$0.00</strong>
 </summary>
 <div class="allowance-breakdown-list" id="reimbursementBreakdownList"></div>
@@ -294,6 +295,14 @@
 <label>Extra tax withheld / fortnight<input id="extraTax" step="0.01" type="number"/></label>
 </div>
 </details>
+<details class="settings-section" id="advancedLeaveLoadingSettings">
+<summary><span>Advanced leave-loading settings</span><small>Optional cap history</small></summary>
+<div class="form-grid settings-grid">
+<label>Loading cap history year<input id="loadingHistoryYear" type="text" inputmode="numeric" placeholder="2026"/></label>
+<label>Annual leave hours before this cycle<input id="loadingHistoryHours" type="text" inputmode="decimal" placeholder="Unknown"/></label>
+<label>Loading already paid before this cycle<input id="loadingHistoryPaid" type="text" inputmode="decimal" placeholder="Unknown"/><small>Use complete payroll history for the selected year; exclude this cycle. Leave blank if unavailable.</small></label>
+</div>
+</details>
 <details class="settings-section">
 <summary><span>Backup and restore</span><small>Save a copy of your roster, settings and pay history</small></summary>
 <div class="backup-actions">
@@ -306,7 +315,7 @@
 </details>
 <details class="settings-section">
 <summary><span>About</span><small>ShiftMate app information</small></summary>
-<div class="settings-note settings-wide"><strong>ShiftMate</strong><br/>Version 3.1.10</div>
+<div class="settings-note settings-wide"><strong>ShiftMate</strong><br/>Version 3.1.12 PAY CALCULATIONS</div>
 </details>
 <div class="action-grid settings-actions">
 <button class="primary" id="saveCurrent">Save settings</button>
@@ -389,9 +398,10 @@
 <button class="nav-button" data-go="settings"><span class="nav-icon">⚙</span><span>Settings</span></button>
 </nav>
 <script src="agreementData.js?v=8.3"></script>
-<script src="shiftData.js?v=1.0.15"></script>
-<script src="payCalculator.js?v=1.0.15"></script>
+<script src="shiftData.js?v=3.1.12-pay-calculations"></script>
+<script src="annualLeaveLoading.js?v=3.1.12-pay-calculations"></script>
+<script src="payCalculator.js?v=3.1.12-pay-calculations"></script>
 <script src="storage.js?v=8.3"></script>
-<script src="app.js?v=3.1.10-offline-allowance-fix"></script>
+<script src="app.js?v=3.1.12-pay-calculations"></script>
 </body>
 </html>
