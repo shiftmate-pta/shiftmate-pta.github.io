@@ -98,6 +98,26 @@
     return `${form}_${day}${month}${year.slice(-2)}_${surname||'Surname'}.pdf`;
   }
 
+  // An inline response supplies the filename to viewers that ignore File.name on blob URLs.
+  async function namedPreviewUrl(file){
+    const worker=navigator.serviceWorker?.controller;
+    if(!worker)return null;
+    const channel=new MessageChannel();
+    let timeout;
+    try{
+      return await new Promise(resolve=>{
+        timeout=setTimeout(()=>resolve(null),1500);
+        channel.port1.onmessage=event=>resolve(event.data?.url||null);
+        worker.postMessage({type:'shiftmate-pdf-preview',file},[channel.port2]);
+      });
+    }catch{
+      return null;
+    }finally{
+      clearTimeout(timeout);
+      channel.port1.close();
+    }
+  }
+
   // Reserve a tab synchronously, while Safari still has the button's user activation.
   function reservePreview(){
     const preview=window.open('about:blank','_blank');
@@ -108,12 +128,18 @@
     }
     let url;
     return {
-      show(blob,filename){
+      async show(blob,filename){
         const file=new File([blob],filename,{type:'application/pdf'});
-        url=URL.createObjectURL(file);
+        const namedUrl=preview&&!preview.closed?await namedPreviewUrl(file):null;
         if(preview&&!preview.closed){
+          if(namedUrl){
+            preview.location.replace(namedUrl);
+            return;
+          }
+          url=URL.createObjectURL(file);
           preview.location.replace(url);
         }else{
+          url=URL.createObjectURL(file);
           const download=document.createElement('a');
           download.href=url;
           download.download=file.name;

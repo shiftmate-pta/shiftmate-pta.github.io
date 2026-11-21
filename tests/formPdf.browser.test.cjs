@@ -56,7 +56,7 @@ async function run(){
       const preview=original();
       return {close:()=>preview.close(),show:async(blob,filename)=>{
         window.generatedPdfs.push({filename,bytes:Array.from(new Uint8Array(await blob.arrayBuffer()))});
-        preview.show(blob,filename);
+        await preview.show(blob,filename);
       }};
     };
   });
@@ -66,11 +66,23 @@ async function run(){
     catch(error){console.error('PDF flow diagnostics:',await page.evaluate(()=>({toast:document.querySelector('#toast')?.textContent,captured:window.generatedPdfs.length})),errors);throw error;}
     const result=await page.evaluate(()=>window.generatedPdfs.at(-1));
     fs.writeFileSync(path.join(output,name+'.pdf'),Buffer.from(result.bytes));
-    assert.equal(await page.evaluate(()=>window.pdfFileNames.at(-1)),result.filename);
+    if(!expectsViewer)assert.equal(await page.evaluate(()=>window.pdfFileNames.at(-1)),result.filename);
     const tabs=context.pages().filter(tab=>tab!==page);
     assert.equal(tabs.length,expectsViewer?1:0);
     for(const tab of tabs){
-      await tab.waitForURL(url=>url.protocol==='blob:',{waitUntil:'commit'});
+      await tab.waitForURL(url=>url.pathname.includes('/__pdf_preview__/')||(!offline&&url.protocol==='blob:'),{waitUntil:'commit'});
+      if(tab.url().startsWith('http')){
+        const served=await page.evaluate(async url=>{
+          const response=await fetch(url);
+          return {type:response.headers.get('Content-Type'),disposition:response.headers.get('Content-Disposition'),
+            bytes:Array.from(new Uint8Array(await response.arrayBuffer()))};
+        },tab.url());
+        assert.equal(decodeURIComponent(new URL(tab.url()).pathname.split('/').at(-1)),result.filename);
+        assert.equal(served.type,'application/pdf');
+        assert.match(served.disposition,/^inline; filename="/);
+        assert.equal(decodeURIComponent(served.disposition.split("filename*=UTF-8''")[1]),result.filename);
+        assert.deepEqual(served.bytes,result.bytes);
+      }
       await tab.close();
     }
     return result;
@@ -128,7 +140,7 @@ async function run(){
   await page.waitForFunction(()=>Boolean(window.FormPdf));
   const assets=await page.evaluate(async()=>{
     const results=[];
-    for(const file of ['./leave-form-template.pdf','./shift-change-form-template.png','./formPdf.js?v=4','./vendor/pdf-lib.min.js?v=1.17.1']){
+    for(const file of ['./leave-form-template.pdf','./shift-change-form-template.png','./formPdf.js?v=5','./vendor/pdf-lib.min.js?v=1.17.1']){
       const response=await fetch(file);results.push([file,response.ok,response.headers.get('Content-Type')]);
     }
     return results;

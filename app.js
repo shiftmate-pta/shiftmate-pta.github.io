@@ -738,7 +738,7 @@
         page.check(map.boxes.evidenceYes,evidence);
         page.check(map.boxes.evidenceNo,!evidence);
       }
-      preview.show(await document.save(),FormPdf.filename('Leave Form',localISO(adjustedEnd),name));
+      await preview.show(await document.save(),FormPdf.filename('Leave Form',localISO(adjustedEnd),name));
       $('#leaveFormSheet').hidden=true;pendingLeaveDocument=null;
       toast(groups.length>1?`${groups.length} separate leave forms generated`:'Leave form generated');
     }catch(error){
@@ -2483,7 +2483,7 @@ const perthShiftLabels={PN:'Perth Assist Arvo',PA:'Perth Afternoon',PD:'Perth As
           await page.text(fields.date,todayText);
         }
       }
-      preview.show(await document.save(),FormPdf.filename('Shift Swap Form',localISO(filenameDate||entries[0].request.date),partnerName));
+      await preview.show(await document.save(),FormPdf.filename('Shift Swap Form',localISO(filenameDate||entries[0].request.date),partnerName));
       toast(entries.length>1?`${entries.length} shift swap forms generated`:'Shift swap form generated');
     }catch(error){
       preview.close();
