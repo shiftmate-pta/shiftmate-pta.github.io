@@ -122,6 +122,7 @@
 <div><span>Annual leave</span><strong id="annualLeavePay">$0.00</strong></div>
 <div><span>Sick / personal leave</span><strong id="sickLeavePay">$0.00</strong></div>
 <div><span>Long service leave</span><strong id="lslPay">$0.00</strong></div>
+<div><span>Easter Sunday additional leave</span><strong id="easterLeavePay">$0.00</strong></div>
 <div><span>Leave without pay</span><strong id="lwopPay">$0.00</strong></div>
 <details class="allowance-breakdown public-holiday-breakdown">
 <summary><span>Public holidays</span><strong id="publicHolidayPay">$0.00</strong></summary>
@@ -292,7 +293,15 @@
 <label>Novated lease pre-tax<input id="lease" step="0.01" type="number"/></label>
 <label>Salary sacrifice super pre-tax<input id="gesb" step="0.01" type="number"/></label>
 <label>Other post-tax deductions<input id="postTax" step="0.01" type="number"/></label>
+<label>Resident PAYG scale<select id="paygScale"><option value="2">Tax-free threshold claimed</option><option value="1">Tax-free threshold not claimed</option></select></label>
 <label>Extra tax withheld / fortnight<input id="extraTax" step="0.01" type="number"/></label>
+</div>
+</details>
+<details class="settings-section">
+<summary><span>Acting-supervisor overtime</span><small>Payslip-based estimate</small></summary>
+<div class="form-grid settings-grid">
+<label>Estimated hourly base rate<input id="supervisorRate" min="0.01" step="0.0001" type="number"/></label>
+<label>Rate effective from<input id="supervisorRateEffective" type="date"/></label>
 </div>
 </details>
 <details class="settings-section" id="advancedLeaveLoadingSettings">
@@ -315,7 +324,7 @@
 </details>
 <details class="settings-section">
 <summary><span>About</span><small>ShiftMate app information</small></summary>
-<div class="settings-note settings-wide"><strong>ShiftMate</strong><br/>Version 3.1.13 PDF FORMS</div>
+<div class="settings-note settings-wide"><strong>ShiftMate</strong><br/>Version 3.1.14</div>
 </details>
 <div class="action-grid settings-actions">
 <button class="primary" id="saveCurrent">Save settings</button>
@@ -331,6 +340,7 @@
 <div class="leave-form-range-summary" id="bookOffSummary"></div>
 <p class="field-note">Choose Roster adjustment for event/operational time changes. Choose Book-off when part of the rostered shift was not worked and leave documentation is required.</p>
 <button class="ghost" id="bookOffRosterAdjustment" type="button">Roster adjustment</button>
+<label>Paid leave type<select id="bookOffLeaveType"><option value="sick">Personal leave</option><option value="annual">Annual leave</option></select></label>
 <button class="primary" id="bookOffConfirm" type="button">Book-off</button>
 <button class="ghost" id="bookOffCancel" type="button">Cancel</button>
 </div>
@@ -398,13 +408,13 @@
 <button class="nav-button" data-go="settings"><span class="nav-icon">⚙</span><span>Settings</span></button>
 </nav>
 <script src="agreementData.js?v=8.3"></script>
-<script src="shiftData.js?v=3.1.13-pta-forms"></script>
+<script src="shiftData.js?v=3.1.14-payroll-pdf"></script>
 <script src="annualLeaveLoading.js?v=3.1.13-pta-forms"></script>
-<script src="payCalculator.js?v=3.1.13-pta-forms"></script>
+<script src="payCalculator.js?v=3.1.14-payroll-pdf"></script>
 <script src="storage.js?v=8.3"></script>
 <script src="vendor/pdf-lib.min.js?v=1.17.1"></script>
 <script src="formPdfFields.js?v=2"></script>
-<script src="formPdf.js?v=2"></script>
-<script src="app.js?v=3.1.13-pta-forms"></script>
+<script src="formPdf.js?v=3"></script>
+<script src="app.js?v=3.1.14-payroll-pdf"></script>
 </body>
 </html>

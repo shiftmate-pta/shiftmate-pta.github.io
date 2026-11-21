@@ -43,6 +43,16 @@ async function run(){
   // Capture the exact Blob given to the real open/save flow, while retaining it.
   const installCapture=async()=>page.evaluate(()=>{
     window.generatedPdfs=[];window.previewWasSynchronous=[];
+    window.sharedPdfNames=[];
+    const open=window.open;
+    window.open=(...args)=>{
+      const popup=open.apply(window,args);
+      if(popup){
+        Object.defineProperty(popup.navigator,'canShare',{value:()=>true});
+        Object.defineProperty(popup.navigator,'share',{value:async({files})=>window.sharedPdfNames.push(files[0].name)});
+      }
+      return popup;
+    };
     document.addEventListener('click',()=>{window.pdfClickTask=true;queueMicrotask(()=>{window.pdfClickTask=false;});},true);
     const original=FormPdf.reservePreview;
     FormPdf.reservePreview=()=>{
@@ -60,7 +70,15 @@ async function run(){
     catch(error){console.error('PDF flow diagnostics:',await page.evaluate(()=>({toast:document.querySelector('#toast')?.textContent,captured:window.generatedPdfs.length})),errors);throw error;}
     const result=await page.evaluate(()=>window.generatedPdfs.at(-1));
     fs.writeFileSync(path.join(output,name+'.pdf'),Buffer.from(result.bytes));
-    for(const tab of context.pages())if(tab!==page)await tab.close();
+    for(const tab of context.pages())if(tab!==page){
+      assert.equal(await tab.title(),result.filename);
+      const download=tab.waitForEvent('download');
+      await tab.getByRole('link',{name:'Download PDF'}).click();
+      assert.equal((await download).suggestedFilename(),result.filename);
+      await tab.getByRole('button',{name:'Share PDF'}).click();
+      assert.equal(await page.evaluate(()=>window.sharedPdfNames.at(-1)),result.filename);
+      await tab.close();
+    }
     return result;
   };
   // First generation is offline: every dependency/template must already be cached.
@@ -75,9 +93,9 @@ async function run(){
   await page.selectOption('#leaveEvidence','no');
   await page.fill('#leaveFormComments','Family care');
   await page.click('#generateLeaveDocument');
-  await collect('leave-care-offline',1);
+  assert.equal((await collect('leave-care-offline',1)).filename,'Leave Form_301026_D’Souza-José.pdf');
   await page.click('#homeGenerateSwap');
-  await page.fill('#swapPartnerName','Taylor Example');
+  await page.fill('#swapPartnerName','Taylor Exa:mple');
   await page.fill('#swapPartnerService','67890');
   await page.fill('#swapRequestDate','2026-10-30');
   await page.fill('#swapPartnerDate','2026-10-27');
@@ -91,17 +109,17 @@ async function run(){
   await page.fill('#swapOthers','Jordan Example');
   await page.check('#swapNeutralCost');
   await page.click('#generateShiftSwap');
-  await collect('swap-single-offline',2);
+  assert.equal((await collect('swap-single-offline',2)).filename,'Shift Swap Form_301026_Example.pdf');
   await page.click('[data-swap-mode="roster"]');
   await page.click('#generateShiftSwap');
-  await collect('swap-roster-offline',3);
+  assert.equal((await collect('swap-roster-offline',3)).filename,'Shift Swap Form_301026_Example.pdf');
   assert.deepEqual(await page.evaluate(()=>window.previewWasSynchronous),[true,true,true]);
   // A browser that refuses popups must still receive a valid download.
   await page.evaluate(()=>{window.open=()=>null;});
   const downloaded=page.waitForEvent('download');
   await page.click('#generateShiftSwap');
   const download=await downloaded;
-  assert.match(download.suggestedFilename(),/^ShiftMate-Shift-Swap-.*\.pdf$/);
+  assert.equal(download.suggestedFilename(),'Shift Swap Form_301026_Example.pdf');
   await collect('swap-popup-blocked',4);
   // Unsupported WinAnsi names must remain visible through the Unicode fallback.
   const unicode=await page.evaluate(async()=>{
@@ -116,7 +134,7 @@ async function run(){
   await page.waitForFunction(()=>Boolean(window.FormPdf));
   const assets=await page.evaluate(async()=>{
     const results=[];
-    for(const file of ['./leave-form-template.pdf','./shift-change-form-template.png','./formPdf.js?v=1','./vendor/pdf-lib.min.js?v=1.17.1']){
+    for(const file of ['./leave-form-template.pdf','./shift-change-form-template.png','./formPdf.js?v=3','./vendor/pdf-lib.min.js?v=1.17.1']){
       const response=await fetch(file);results.push([file,response.ok,response.headers.get('Content-Type')]);
     }
     return results;
@@ -144,7 +162,7 @@ async function run(){
   assert.equal(await page.locator('#leaveFormType').isDisabled(),true);
   const saved=await page.evaluate(()=>localStorage.getItem('ptaV2Current'));
   await page.click('#generateLeaveDocument');
-  await collect('leave-mixed-groups',1);
+  assert.equal((await collect('leave-mixed-groups',1)).filename,'Leave Form_011126_D’Souza-José.pdf');
   assert.equal(await page.evaluate(()=>localStorage.getItem('ptaV2Current')),saved,'Generating a form must not mutate saved data');
   assert.deepEqual(errors,[]);
   fs.writeFileSync(path.join(output,'browser-results.json'),JSON.stringify({engine,viewport:'iPhone 13',offline,firstUse:true,popupActivation:true,assets,errors},null,2));

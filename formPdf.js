@@ -91,6 +91,13 @@
     };
     return {map,addPage,save:async()=>new Blob([await pdf.save()],{type:'application/pdf'})};
   }
+  function filename(form,date,fullName){
+    const [year,month,day]=date.split('-');
+    const surname=fullName.trim().split(/\s+/).at(-1)
+      .replace(/[<>:"/\\|?*\x00-\x1f\x7f]/g,'').replace(/\.+$/,'');
+    return `${form}_${day}${month}${year.slice(-2)}_${surname||'Surname'}.pdf`;
+  }
+
   // Reserve a tab synchronously, while Safari still has the button's user activation.
   function reservePreview(){
     const preview=window.open('about:blank','_blank');
@@ -102,17 +109,43 @@
     let url;
     return {
       show(blob,filename){
-        url=URL.createObjectURL(blob);
-        if(preview&&!preview.closed)preview.location.replace(url);
-        else{
-          const link=document.createElement('a');link.href=url;link.download=filename;
-          document.body.appendChild(link);link.click();link.remove();
+        const file=new File([blob],filename,{type:'application/pdf'});
+        url=URL.createObjectURL(file);
+        const previewOpen=preview&&!preview.closed;
+        const target=previewOpen?preview.document:document;
+        const download=target.createElement('a');
+        download.href=url;
+        download.download=file.name;
+        download.textContent='Download PDF';
+        if(previewOpen){
+          target.title=file.name;
+          const open=target.createElement('a');
+          open.href=url;
+          open.textContent='Open PDF in viewer';
+          target.body.replaceChildren(download,' · ',open);
+          if(preview.navigator.canShare?.({files:[file]})){
+            const share=target.createElement('button');
+            share.type='button';
+            share.textContent='Share PDF';
+            share.onclick=async()=>{
+              try{await preview.navigator.share({files:[file]});}
+              catch(error){if(error.name!=='AbortError')download.click();}
+            };
+            target.body.append(' · ',share);
+          }
+          const frame=target.createElement('iframe');
+          frame.src=url;
+          frame.title=file.name;
+          frame.style.cssText='display:block;width:100%;height:90vh;border:0;margin-top:8px';
+          target.body.append(frame);
+          preview.addEventListener('pagehide',()=>setTimeout(()=>URL.revokeObjectURL(url),300000),{once:true});
+        }else{
+          target.body.appendChild(download);download.click();download.remove();
+          setTimeout(()=>URL.revokeObjectURL(url),300000);
         }
-        // Give Safari's PDF viewer time to load/share/save the Blob.
-        setTimeout(()=>URL.revokeObjectURL(url),300000);
       },
       close(){if(preview&&!preview.closed)preview.close();if(url)URL.revokeObjectURL(url);}
     };
   }
-  window.FormPdf={create,reservePreview,leavePosition};
+  window.FormPdf={create,reservePreview,leavePosition,filename};
 })();

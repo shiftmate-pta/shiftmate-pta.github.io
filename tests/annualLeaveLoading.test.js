@@ -47,12 +47,11 @@ close(second.breakdown.publicHolidayPay,443.70);
 close(second.gross,4443.78);
 close(4444.26-second.gross,.48,'retrospective allowance remains separate');
 close(second.leaveUsage.annual,70);
-// Withholding engine and CDTX treatment deliberately unchanged in this update.
-assert.equal(second.tax,850,'existing annualised estimate, not payroll-verified PAYG');
+assert.equal(second.tax,852,'ATO Scale 2 on roster-derived taxable earnings');
 assert.equal(second.deductions.salaryPackaging,546.95);
 assert.equal(second.deductions.superPreTax,100);
 assert.equal(second.deductions.postTax,7.4);
-close(second.net,2939.43,'arithmetic only, not a target deposit');
+close(second.net,2937.43,'arithmetic only, not a target deposit');
 assert.notEqual(second.net,2935.91);
 const mixed=calc([{code:'Sick',leaveHours:6,annualLeaveHours:4,type:'Leave'}]);
 close(mixed.breakdown.annualLeavePay,4*44.37+51.10);

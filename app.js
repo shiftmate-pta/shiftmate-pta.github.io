@@ -2,7 +2,7 @@
 (() => {
   'use strict';
 
-  const defaults={loadingHistoryYear:'',loadingHistoryHours:'',loadingHistoryPaid:'',rateSource:'agreement',employmentRole:'',toCommencementDate:'',fcoAppointmentDate:'',stoPromotionDate:'',previousRoleBeforeSto:'',classificationOverride:true,classification:'',manualBaseRate:0,baseRate:0,wdMult:1,satMult:1.5,sunMult:2,addHoursMult:1.84,weekendOtMult:2,publicHolidayWorkedMult:2.5,hdRate:4.87,maRate:4.87,nightRate:5.77,lease:0,gesb:0,postTax:0,annualLeaveLoadingRate:12.55,extraTax:0,employeeName:'',serviceNumber:'',customPublicHolidays:'',homeLine:'',rosterLineNumber:0,rosterLineAnchorDate:'',otTarget:1};
+  const defaults={paygScale:2,supervisorRate:50.89,supervisorRateEffective:"2026-10-12",loadingHistoryYear:'',loadingHistoryHours:'',loadingHistoryPaid:'',rateSource:'agreement',employmentRole:'',toCommencementDate:'',fcoAppointmentDate:'',stoPromotionDate:'',previousRoleBeforeSto:'',classificationOverride:true,classification:'',manualBaseRate:0,baseRate:0,wdMult:1,satMult:1.5,sunMult:2,addHoursMult:1.84,weekendOtMult:2,publicHolidayWorkedMult:2.5,hdRate:4.87,maRate:4.87,nightRate:5.77,lease:0,gesb:0,postTax:0,annualLeaveLoadingRate:12.55,extraTax:0,employeeName:'',serviceNumber:'',customPublicHolidays:'',homeLine:'',rosterLineNumber:0,rosterLineAnchorDate:'',otTarget:1};
   const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
   const money=n=>new Intl.NumberFormat('en-AU',{style:'currency',currency:'AUD'}).format(Number(n)||0);
   const localISO=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -22,13 +22,7 @@
     return `${a.toLocaleDateString('en-AU',{day:'numeric',month:'short'})} – ${b.toLocaleDateString('en-AU',{day:'numeric',month:'short'})}`;
   };
 
-  const paydayFor=start=>{
-    const s=parseDate(start),end=new Date(s);end.setDate(s.getDate()+13);
-    const next=new Date(end);next.setDate(end.getDate()+1);
-    const offset=(3-next.getDay()+7)%7;
-    const pay=new Date(next);pay.setDate(next.getDate()+offset+7);
-    return pay;
-  };
+  const paydayFor=PayCalc.paydayFor;
   const financialYearFor=date=>{
     const d=new Date(date),startYear=d.getMonth()>=6?d.getFullYear():d.getFullYear()-1;
     return {startYear,label:`${startYear}–${String(startYear+1).slice(-2)}`};
@@ -286,7 +280,7 @@
     const start=actualCycle?.startDate?parseDate(actualCycle.startDate):(state.projection?.fortnightStart||projectionFortnightStartForProfile(date));
     if(!start)return new Map();
     const requestedTarget=Math.min(5,Math.max(1,Number(current.settings.otTarget)||1));
-    const cacheKey=`${localISO(start)}|${actualCycle?.id||'projected'}|${current.settings.homeLine}|${current.settings.classification}|${current.settings.employmentRole}|${current.settings.rosterLineNumber}|${current.settings.baseRate}|${current.settings.lease}|${current.settings.gesb}|${current.settings.postTax}|${current.settings.extraTax}|${requestedTarget}`;
+    const cacheKey=`${localISO(start)}|${actualCycle?.id||'projected'}|${current.settings.homeLine}|${current.settings.classification}|${current.settings.employmentRole}|${current.settings.rosterLineNumber}|${current.settings.baseRate}|${current.settings.lease}|${current.settings.gesb}|${current.settings.postTax}|${current.settings.extraTax}|${current.settings.paygScale}|${requestedTarget}`;
     if(otRecommendationCache.has(cacheKey))return otRecommendationCache.get(cacheKey);
     const baseline=actualCycle?JSON.parse(JSON.stringify(actualCycle)):projectedBaselineCycle(start);
     // OT simulations always use the user's CURRENT employment settings and the
@@ -615,7 +609,7 @@
     const reason=entry.row.personalLeaveReason||'illness';
     return {leaveType,leaveEntries,start:first.date,end:last.date,hours,reason};
   }
-  const leaveLabel=type=>type==='annual'?'Annual Leave':type==='sick'?'Personal Leave':type==='lsl'?'Long Service Leave':type==='lwop'?'Leave Without Pay':'Other Leave';
+  const leaveLabel=type=>type==="easter"?"Easter Sunday additional leave":type==='annual'?'Annual Leave':type==='sick'?'Personal Leave':type==='lsl'?'Long Service Leave':type==='lwop'?'Leave Without Pay':'Other Leave';
   function leaveReasonForEntry(e){return e?.row?.personalLeaveReason||'illness'}
   function leaveHoursForEntry(e){
     return PayCalc.leaveHoursUsed(e.row,e.date,e.cycle?.settings||current.settings);
@@ -744,7 +738,7 @@
         page.check(map.boxes.evidenceYes,evidence);
         page.check(map.boxes.evidenceNo,!evidence);
       }
-      preview.show(await document.save(),`ShiftMate-Leave-${localISO(adjustedStart)}.pdf`);
+      preview.show(await document.save(),FormPdf.filename('Leave Form',localISO(adjustedEnd),name));
       $('#leaveFormSheet').hidden=true;pendingLeaveDocument=null;
       toast(groups.length>1?`${groups.length} separate leave forms generated`:'Leave form generated');
     }catch(error){
@@ -1105,7 +1099,7 @@
       <span class="setting-chip state"><i class="status-lamp ${deductions?'on':'off'}"></i><small>Deductions</small><b>${deductions?`${deductions} active`:'Off'}</b></span>
       <span class="setting-chip"><small>OT target</small><b>${target}</b></span>`;
   }
-  const leaveOrder=['A/L','Sick','LSL','LWOP'];
+  const leaveOrder=['A/L','Sick','LSL','LWOP','ADL'];
   const rosterLineOptions=(selected='')=>Object.entries(window.ROSTER_LINES||{}).map(([value,label])=>`<option value="${value}" ${value===selected?'selected':''}>${label}</option>`).join('');
   const shiftDisplayLabels={CBR:'Claisebrook',MCN:'McIver',EQA:'Elizabeth Quay Arvo',EQM:'Elizabeth Quay Morn'};
 const perthShiftLabels={PN:'Perth Assist Arvo',PA:'Perth Afternoon',PD:'Perth Assist Day',PM:'Perth Morning',PRD:'Perth Roaming Day',UD:'Underground Day',UN:'Underground Arvo'};
@@ -1166,7 +1160,7 @@ const perthShiftLabels={PN:'Perth Assist Arvo',PA:'Perth Afternoon',PD:'Perth As
   let calendarCursor=new Date();
   calendarCursor=new Date(calendarCursor.getFullYear(),calendarCursor.getMonth(),1);
 
-  const stringSettings=new Set(['loadingHistoryYear','loadingHistoryHours','loadingHistoryPaid','rateSource','employmentRole','toCommencementDate','fcoAppointmentDate','stoPromotionDate','previousRoleBeforeSto','classification','employeeName','serviceNumber','customPublicHolidays','homeLine','rosterLineAnchorDate']);
+  const stringSettings=new Set(['supervisorRateEffective','loadingHistoryYear','loadingHistoryHours','loadingHistoryPaid','rateSource','employmentRole','toCommencementDate','fcoAppointmentDate','stoPromotionDate','previousRoleBeforeSto','classification','employeeName','serviceNumber','customPublicHolidays','homeLine','rosterLineAnchorDate']);
   const boolSettings=new Set(['classificationOverride']);
   const normaliseSettings=raw=>Object.fromEntries(Object.keys(defaults).map(k=>{
     if(stringSettings.has(k))return [k,String(raw?.[k]??defaults[k])];
@@ -1298,6 +1292,7 @@ const perthShiftLabels={PN:'Perth Assist Arvo',PA:'Perth Afternoon',PD:'Perth As
     pendingBookOff={card,date,code,actualStart,actualFinish,...diff};
     const summary=$('#bookOffSummary');
     if(summary)summary.innerHTML=`<strong>${diff.missingHours.toFixed(2)}h difference detected</strong><small>Rostered ${diff.scheduledStart}–${diff.scheduledFinish} • Entered ${actualStart}–${actualFinish}</small>`;
+    $('#bookOffLeaveType').value=card.dataset.bookOffLeaveType==='annual'?'annual':'sick';
     $('#bookOffSheet').hidden=false;
   }
   function closeBookOffChoice(){if($('#bookOffSheet'))$('#bookOffSheet').hidden=true;pendingBookOff=null}
@@ -1305,7 +1300,7 @@ const perthShiftLabels={PN:'Perth Assist Arvo',PA:'Perth Afternoon',PD:'Perth As
     if(!pendingBookOff)return;
     const {card,scheduledStart,scheduledFinish,missingHours}=pendingBookOff;
     card.dataset.bookOffHours=String(missingHours);
-    card.dataset.bookOffLeaveType='sick';
+    card.dataset.bookOffLeaveType=$('#bookOffLeaveType').value;
     card.dataset.bookOffLeaveReason='illness';
     card.dataset.scheduledStart=scheduledStart;
     card.dataset.scheduledFinish=scheduledFinish;
@@ -1538,6 +1533,7 @@ const perthShiftLabels={PN:'Perth Assist Arvo',PA:'Perth Afternoon',PD:'Perth As
           </select></label>
           <label>Partner<input class="shift-partner" type="text" list="partnerSuggestions" value="${String(row.partner||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" placeholder="Optional"></label>
           <label>Higher duties<select class="higher-duties"><option value="no" ${row.hd?'':'selected'}>No</option><option value="yes" ${row.hd?'selected':''}>Yes</option></select></label>
+          <label>Acting supervisor (picked-up OT)<input type="checkbox" class="acting-supervisor" ${row.actingSupervisor?'checked':''}></label>
           <label>Start<input class="start-time" type="time" value="${row.start||''}"></label>
           <label>Finish<input class="finish-time" type="time" value="${row.finish||''}"></label>
           <label class="personal-leave-reason-field">Personal leave reason<select class="personal-leave-reason"><option value="illness" ${(row.personalLeaveReason||'illness')==='illness'?'selected':''}>Illness or injury</option><option value="care" ${row.personalLeaveReason==='care'?'selected':''}>Providing care/support to family</option><option value="unanticipated" ${row.personalLeaveReason==='unanticipated'?'selected':''}>Unanticipated matter requiring immediate attention</option></select></label>
@@ -1722,7 +1718,7 @@ const perthShiftLabels={PN:'Perth Assist Arvo',PA:'Perth Afternoon',PD:'Perth As
         syncCurrentFromUI();
         recalculate();
       };
-      card.querySelectorAll('.shift-type,.higher-duties,.ph-benefit,.ph-ordinary-day,.offline-reason,.personal-leave-reason').forEach(el=>el.onchange=()=>{card.dataset.entered='true';updateRosterCardState(card);syncCurrentFromUI();recalculate()});
+      card.querySelectorAll('.shift-type,.higher-duties,.acting-supervisor,.ph-benefit,.ph-ordinary-day,.offline-reason,.personal-leave-reason').forEach(el=>el.onchange=()=>{card.dataset.entered='true';updateRosterCardState(card);syncCurrentFromUI();recalculate()});
       card.querySelectorAll('.leave-hours,.annual-leave-hours,.leave-commencement-date,.ph-ordinary-hours,.shift-partner').forEach(el=>el.oninput=()=>{card.dataset.entered='true';updateRosterCardState(card);syncCurrentFromUI();recalculate()});
       const manualTime=()=>{
         const code=effectiveShiftCode(card);
@@ -1768,6 +1764,7 @@ const perthShiftLabels={PN:'Perth Assist Arvo',PA:'Perth Afternoon',PD:'Perth As
       offlineShiftCode:card.querySelector('.shift-code').value===OFFLINE_CODE?effectiveShiftCode(card):'',
       type:rosterControl(card,'.shift-type')?.value||'Off',
       hd:rosterControl(card,'.higher-duties')?.value==='yes',
+      actingSupervisor:Boolean(rosterControl(card,'.acting-supervisor')?.checked),
       start:rosterControl(card,'.start-time')?.value||'',
       finish:rosterControl(card,'.finish-time')?.value||'',
       earlyStartHours:0,
@@ -1899,7 +1896,7 @@ const perthShiftLabels={PN:'Perth Assist Arvo',PA:'Perth Afternoon',PD:'Perth As
           : `${d.name} • ${row.start}–${row.finish}${earlyText}${addText}${forcedText}`;
       }
     });
-    $('#workedPay').textContent=money(latestResult.breakdown.workedPay);$('#publicHolidayPay').textContent=money(latestResult.breakdown.publicHolidayPay);renderPublicHolidayBreakdown(latestResult.publicHolidayDetails);$('#annualLeavePay').textContent=money(latestResult.breakdown.annualLeavePay);$('#sickLeavePay').textContent=money(latestResult.breakdown.sickLeavePay);$('#lslPay').textContent=money(latestResult.breakdown.lslPay);$('#lwopPay').textContent=money(latestResult.breakdown.lwopPay);$('#extrasPay').textContent=money(latestResult.breakdown.extrasPay);renderAllowanceBreakdown(latestResult.allowanceDetails);$('#reimbursementsPay').textContent=money(latestResult.reimbursements);renderReimbursementBreakdown(latestResult.reimbursementDetails);$('#additionalHoursPay').textContent=money(latestResult.breakdown.additionalHoursPay);$('#gross').textContent=money(latestResult.gross);
+    $('#easterLeavePay').textContent=money(latestResult.breakdown.easterLeavePay);$('#workedPay').textContent=money(latestResult.breakdown.workedPay);$('#publicHolidayPay').textContent=money(latestResult.breakdown.publicHolidayPay);renderPublicHolidayBreakdown(latestResult.publicHolidayDetails);$('#annualLeavePay').textContent=money(latestResult.breakdown.annualLeavePay);$('#sickLeavePay').textContent=money(latestResult.breakdown.sickLeavePay);$('#lslPay').textContent=money(latestResult.breakdown.lslPay);$('#lwopPay').textContent=money(latestResult.breakdown.lwopPay);$('#extrasPay').textContent=money(latestResult.breakdown.extrasPay);renderAllowanceBreakdown(latestResult.allowanceDetails);$('#reimbursementsPay').textContent=money(latestResult.reimbursements);renderReimbursementBreakdown(latestResult.reimbursementDetails);$('#additionalHoursPay').textContent=money(latestResult.breakdown.additionalHoursPay);$('#gross').textContent=money(latestResult.gross);
     $('#taxable').textContent=money(latestResult.taxable);
     $('#tax').textContent=money(latestResult.tax);
     $('#hours').textContent=latestResult.hours.toFixed(1);
@@ -2101,6 +2098,7 @@ const perthShiftLabels={PN:'Perth Assist Arvo',PA:'Perth Afternoon',PD:'Perth As
     $('#workedPay').textContent=money(result.breakdown.workedPay);$('#publicHolidayPay').textContent=money(result.breakdown.publicHolidayPay);
     renderLeaveAudit(result);renderPublicHolidayBreakdown(result.publicHolidayDetails);$('#annualLeavePay').textContent=money(result.breakdown.annualLeavePay);
     $('#sickLeavePay').textContent=money(result.breakdown.sickLeavePay);$('#lslPay').textContent=money(result.breakdown.lslPay);
+    $('#easterLeavePay').textContent=money(result.breakdown.easterLeavePay);
     $('#lwopPay').textContent=money(result.breakdown.lwopPay);$('#extrasPay').textContent=money(result.breakdown.extrasPay);
     renderAllowanceBreakdown(result.allowanceDetails,cycle.startDate);$('#reimbursementsPay').textContent=money(result.reimbursements);renderReimbursementBreakdown(result.reimbursementDetails,cycle.startDate);$('#additionalHoursPay').textContent=money(result.breakdown.additionalHoursPay);
     $('#gross').textContent=money(result.gross);$('#taxable').textContent=money(result.taxable);$('#tax').textContent=money(result.tax);
@@ -2192,7 +2190,7 @@ const perthShiftLabels={PN:'Perth Assist Arvo',PA:'Perth Afternoon',PD:'Perth As
     saveCurrent();
     const payload={
       app:'PTA ShiftMate',
-      version:'3.1.13-pta-forms',
+      version:'3.1.14-payroll-pdf',
       exportedAt:new Date().toISOString(),
       current:AppStorage.loadCurrent(),
       cycles:AppStorage.loadCycles()
@@ -2419,7 +2417,7 @@ const perthShiftLabels={PN:'Perth Assist Arvo',PA:'Perth Afternoon',PD:'Perth As
     if(!reqName||!reqService){toast('Add your name and service number in Settings');return}
     if(!partnerName||!partnerService){toast('Enter the replacement employee details');return}
 
-    let entries=[];
+    let entries=[],filenameDate;
     if(swapMode==='multi'){
       if(!swapState.requestDates.length){toast('Add at least one swap date');return}
       const cards=$$('#swapMultiEntries .swap-entry-card');
@@ -2436,6 +2434,7 @@ const perthShiftLabels={PN:'Perth Assist Arvo',PA:'Perth Afternoon',PD:'Perth As
       const rd=swapDateValue('#swapRequestDate'),pd=swapDateValue('#swapPartnerDate');
       if(!rd||!pd){toast('Select both dates');return}
       if(swapMode==='roster'){
+        filenameDate=rd;
         entries=[{request:{date:null,shift:swapFmtPE(rd),start:'',finish:''},partner:{date:null,shift:swapFmtPE(pd),start:'',finish:''}}];
       }else{
         entries=[{
@@ -2484,7 +2483,7 @@ const perthShiftLabels={PN:'Perth Assist Arvo',PA:'Perth Afternoon',PD:'Perth As
           await page.text(fields.date,todayText);
         }
       }
-      preview.show(await document.save(),`ShiftMate-Shift-Swap-${localISO(entries[0].request.date||new Date())}.pdf`);
+      preview.show(await document.save(),FormPdf.filename('Shift Swap Form',localISO(filenameDate||entries[0].request.date),partnerName));
       toast(entries.length>1?`${entries.length} shift swap forms generated`:'Shift swap form generated');
     }catch(error){
       preview.close();

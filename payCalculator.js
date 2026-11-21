@@ -45,6 +45,26 @@ window.PayCalc = (() => {
     return out;
   };
   const annualTax=income=>{if(income<=18200)return 0;let tax=0;if(income<=45000)tax=(income-18200)*.15;else if(income<=135000)tax=4020+(income-45000)*.30;else if(income<=190000)tax=31020+(income-135000)*.37;else tax=51370+(income-190000)*.45;return tax+income*.02};
+  const paydayFor=startDate=>{
+    const next=addDays(new Date(startDate+'T00:00:00'),14);
+    return addDays(next,(3-next.getDay()+7)%7+7);
+  };
+  // ATO Schedule 1 (NAT 1004), effective 1 July 2026, resident scales 1 and 2.
+  const residentScales={
+    1:[[188,.15,.15],[371,.2084,11.0185],[515,.179,.1066],[932,.3227,74.1674],
+      [2246,.32,71.6508],[3303,.39,228.8816],[Infinity,.47,493.1893]],
+    2:[[362,0,0],[538,.15,54.3462],[673,.25,108.2135],[721,.17,54.3473],
+      [865,.179,60.8377],[1282,.3227,185.1935],[2596,.32,181.7319],
+      [3653,.39,363.4627],[Infinity,.47,655.7704]]
+  };
+  function withholding(taxable,settings,paymentDate){
+    if(!taxable)return 0;
+    const extra=Number(settings.extraTax)||0;
+    if(paymentDate<'2026-07-01')return Math.max(0,Math.round(annualTax(taxable*26)/26+extra));
+    const weekly=Math.floor(taxable/2)+.99;
+    const [,a,b]=residentScales[settings.paygScale===1?1:2].find(([limit])=>weekly<limit);
+    return Math.max(0,Math.round(weekly*a-b)*2+extra);
+  }
   const qualifiesEarlyLate=(start,finish)=>{const s=mins(start),f=mins(finish);return (s>=61&&s<=239)||(f>=61&&f<=239)};
   const operationalShiftType=code=>{
     const c=String(code||'').trim().toUpperCase();
@@ -115,9 +135,9 @@ window.PayCalc = (() => {
     const start=new Date(startDate+'T00:00:00');
     const holidays=holidayMapForRange(start,settings.customPublicHolidays);
     let gross=0,hours=0,reimbursements=0;const dayTotals=[];
-    const breakdown={workedPay:0,annualLeavePay:0,sickLeavePay:0,lslPay:0,lwopPay:0,extrasPay:0,additionalHoursPay:0,publicHolidayPay:0,reimbursements:0};
+    const breakdown={workedPay:0,annualLeavePay:0,sickLeavePay:0,easterLeavePay:0,lslPay:0,lwopPay:0,extrasPay:0,additionalHoursPay:0,publicHolidayPay:0,reimbursements:0};
     const allowanceDetails=[],reimbursementDetails=[],publicHolidayDetails=[],phBuckets=new Map();
-    const rows=[],annualLeaveDetails=[],calculationWarnings=new Set(),leaveUsage={annual:0,personal:0,longService:0},loadingHistory=new Map();
+    const rows=[],annualLeaveDetails=[],calculationWarnings=new Set(),leaveUsage={annual:0,personal:0,easter:0,longService:0},loadingHistory=new Map();
     const round=window.AnnualLeaveLoading?.round||(n=>Math.round((n+Number.EPSILON)*100)/100);
     function addAnnual(info,leaveHours){
       const date=iso(info.date),loading=window.AnnualLeaveLoading?.resolve(settings,date,info.row.leaveCommencementDate||date);
@@ -184,6 +204,9 @@ window.PayCalc = (() => {
             const annualAmount=addAnnual(info,annualPart);
             dayGross+=annualAmount;dayHours+=annualPart;breakdown.annualLeavePay+=annualAmount;
           }
+        }else if(data.leaveType==='easter'){
+          const amount=round(leaveHours*settings.baseRate);
+          leaveUsage.easter+=leaveHours;dayGross+=amount;dayHours+=leaveHours;breakdown.easterLeavePay+=amount;
         }else if(data.leaveType==='lsl'){
           leaveUsage.longService+=leaveHours;
           const amount=leaveHours*settings.baseRate;dayGross+=amount;dayHours+=leaveHours;breakdown.lslPay+=amount;
@@ -195,7 +218,25 @@ window.PayCalc = (() => {
         const actualFinishAbs=actualStartMin+actualDuration;
 
         if(row.type==='Picked-up OT'){
-          splitInterval(date,actualStartMin,actualDuration).forEach(seg=>{
+          const segments=splitInterval(date,actualStartMin,actualDuration);
+          const shiftDate=iso(date);
+          const overrideDate=settings.supervisorRateEffective;
+          const overrideRate=Number(settings.supervisorRate);
+          const supervisorRate=overrideDate&&shiftDate>=overrideDate&&overrideRate>0
+            ?overrideRate:shiftDate>='2026-10-12'?50.89:0;
+          const estimated=row.actingSupervisor&&supervisorRate>0&&segments.every(({date})=>
+            date.getDay()!==0&&date.getDay()!==6&&!holidays.has(iso(date)));
+          if(row.actingSupervisor){
+            calculationWarnings.add(estimated
+              ?'Acting-supervisor overtime uses a payslip-based estimate.'
+              :'Acting-supervisor overtime estimate is unavailable for this date or a weekend/public-holiday segment. Standard overtime rates were used.');
+          }
+          if(estimated){
+            const workHours=actualDuration/60;
+            additionalPay=round(supervisorRate*1.5*Math.min(3,workHours))+
+              round(supervisorRate*2*Math.max(0,workHours-3));
+            dayHours+=workHours;dayGross+=additionalPay;
+          }else segments.forEach(seg=>{
             const h=seg.minutes/60;dayHours+=h;
             if(addPhWork(seg,info,true,effectiveBase))return;
             const mult=otMultiplierForDate(seg.date,settings);
@@ -203,7 +244,9 @@ window.PayCalc = (() => {
           });
           breakdown.additionalHoursPay+=additionalPay;
         }else{
-          const nominal=data.times[dayGroup(date.getDay())]||[st,fn];
+          const hasBookOff=Number(row.bookOffHours)>0&&['annual','sick'].includes(row.bookOffLeaveType);
+          const nominal=hasBookOff&&row.scheduledStart&&row.scheduledFinish
+            ?[row.scheduledStart,row.scheduledFinish]:data.times[dayGroup(date.getDay())]||[st,fn];
           const nominalStartMin=mins(nominal[0]);
           const nominalDuration=((mins(nominal[1])-nominalStartMin+1440)%1440||1440);
           const nominalFinishAbs=nominalStartMin+nominalDuration;
@@ -225,6 +268,23 @@ window.PayCalc = (() => {
 
           const ordinaryStart=Math.max(effectiveActualStart,nominalStartMin);
           const ordinaryFinish=Math.min(effectiveActualFinish,nominalFinishAbs);
+          if(hasBookOff){
+            const workedScheduledMinutes=Math.max(0,ordinaryFinish-ordinaryStart);
+            const leaveHours=Math.min(Number(row.bookOffHours),(nominalDuration-workedScheduledMinutes)/60);
+            if(leaveHours>0){
+              const holidayWork=splitInterval(date,effectiveActualStart,effectiveActualFinish-effectiveActualStart)
+                .some(seg=>holidays.has(iso(seg.date)));
+              if(dayHoliday||holidayWork){
+                calculationWarnings.add('Review partial book-off on a shift touching a public holiday. Book-off pay is excluded from this estimate.');
+              }else if(row.bookOffLeaveType==='annual'){
+                const amount=addAnnual(info,leaveHours);
+                dayGross+=amount;dayHours+=leaveHours;breakdown.annualLeavePay+=amount;
+              }else{
+                const amount=round(leaveHours*settings.baseRate);
+                dayGross+=amount;dayHours+=leaveHours;breakdown.sickLeavePay+=amount;leaveUsage.personal+=leaveHours;
+              }
+            }
+          }
           let nonPhHours=0,allowanceHours=0;
 
           if(ordinaryFinish>ordinaryStart){
@@ -351,10 +411,12 @@ window.PayCalc = (() => {
     });
 
     rows.forEach((info,i)=>{const dayGross=info.prePhGross||0;gross+=dayGross;hours+=info.dayHours||0;dayTotals.push({gross:dayGross,hours:info.dayHours||0,start:info.st||'',finish:info.fn||'',additionalPay:info.additionalPay||0,holidayName:holidays.get(iso(info.date))||''})});
-    const taxable=Math.max(0,gross-settings.lease-settings.gesb),tax=taxable?Math.max(0,Math.round(annualTax(taxable*26)/26+settings.extraTax)):0,net=taxable-tax-settings.postTax+reimbursements;
+    const taxable=Math.max(0,gross-settings.lease-settings.gesb);
+    const paymentDate=iso(paydayFor(startDate));
+    const tax=withholding(taxable,settings,paymentDate),net=taxable-tax-settings.postTax+reimbursements;
     const deductions={salaryPackaging:Number(settings.lease)||0,superPreTax:Number(settings.gesb)||0,postTax:Number(settings.postTax)||0};
     if(reimbursements)calculationWarnings.add('Mileage withholding is unverified; the existing exclusion is retained.');
     return {annualLeaveDetails,leaveUsage,calculationWarnings:[...calculationWarnings],deductions,gross,taxable,tax,hours,net,reimbursements,netHourly:hours?net/hours:0,dayTotals,breakdown,allowanceDetails,reimbursementDetails,publicHolidayDetails};
   };
-  return {calculate,dayGroup,waPublicHolidays,publicHolidayHours,leaveHoursUsed};
+  return {calculate,paydayFor,dayGroup,waPublicHolidays,publicHolidayHours,leaveHoursUsed};
 })();
