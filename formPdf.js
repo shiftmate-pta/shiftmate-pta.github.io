@@ -111,38 +111,18 @@
       show(blob,filename){
         const file=new File([blob],filename,{type:'application/pdf'});
         url=URL.createObjectURL(file);
-        const previewOpen=preview&&!preview.closed;
-        const target=previewOpen?preview.document:document;
-        const download=target.createElement('a');
-        download.href=url;
-        download.download=file.name;
-        download.textContent='Download PDF';
-        if(previewOpen){
-          target.title=file.name;
-          const open=target.createElement('a');
-          open.href=url;
-          open.textContent='Open PDF in viewer';
-          target.body.replaceChildren(download,' · ',open);
-          if(preview.navigator.canShare?.({files:[file]})){
-            const share=target.createElement('button');
-            share.type='button';
-            share.textContent='Share PDF';
-            share.onclick=async()=>{
-              try{await preview.navigator.share({files:[file]});}
-              catch(error){if(error.name!=='AbortError')download.click();}
-            };
-            target.body.append(' · ',share);
-          }
-          const frame=target.createElement('iframe');
-          frame.src=url;
-          frame.title=file.name;
-          frame.style.cssText='display:block;width:100%;height:90vh;border:0;margin-top:8px';
-          target.body.append(frame);
-          preview.addEventListener('pagehide',()=>setTimeout(()=>URL.revokeObjectURL(url),300000),{once:true});
+        if(preview&&!preview.closed){
+          preview.location.replace(url);
         }else{
-          target.body.appendChild(download);download.click();download.remove();
-          setTimeout(()=>URL.revokeObjectURL(url),300000);
+          const download=document.createElement('a');
+          download.href=url;
+          download.download=file.name;
+          document.body.appendChild(download);
+          download.click();
+          download.remove();
         }
+        // Keep the file available while the browser opens or shares the PDF.
+        setTimeout(()=>URL.revokeObjectURL(url),300000);
       },
       close(){if(preview&&!preview.closed)preview.close();if(url)URL.revokeObjectURL(url);}
     };
