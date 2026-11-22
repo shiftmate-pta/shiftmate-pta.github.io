@@ -9,7 +9,7 @@ const {once}=require('node:events');
 const playwright=require(process.env.PLAYWRIGHT_MODULE||'playwright');
 const root=path.resolve(__dirname,'..');
 const output=process.env.PDF_TEST_OUTPUT||path.join(root,'tmp','pdf-review');
-const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.png':'image/png','.pdf':'application/pdf','.json':'application/json'};
+const types={'.html':'text/html','.js':'text/javascript','.mjs':'text/javascript','.css':'text/css','.png':'image/png','.pdf':'application/pdf','.json':'application/json'};
 let browser,server;
 async function run(){
   fs.mkdirSync(output,{recursive:true});
@@ -31,6 +31,13 @@ async function run(){
   const page=await context.newPage();
   const errors=[];page.on('pageerror',error=>errors.push(error.message));
   await page.goto(base);
+  const viewport=await page.locator('meta[name=viewport]').getAttribute('content');
+  assert.doesNotMatch(viewport,/user-scalable\s*=\s*(?:no|0)|maximum-scale\s*=\s*1\s*(?:,|$)/i);
+  const assertMobileFontSize=async selectors=>{
+    const sizes=await page.evaluate(selectors=>Object.fromEntries(selectors.map(selector=>
+      [selector,parseFloat(getComputedStyle(document.querySelector(selector)).fontSize)])),selectors);
+    for(const [selector,size] of Object.entries(sizes))assert.ok(size>=16,`${selector} computed font size: ${size}px`);
+  };
   await page.evaluate(()=>{
     localStorage.setItem('ptaV2Current',JSON.stringify({startDate:'2026-10-25',settings:{employeeName:'Alex D’Souza-José',serviceNumber:'12345',homeLine:'ARMADALE'},days:Array.from({length:14},()=>({code:'',entered:false}))}));
   });
@@ -42,54 +49,77 @@ async function run(){
   }
   // Capture the exact Blob given to the real open/save flow, while retaining it.
   const installCapture=async()=>page.evaluate(()=>{
-    window.generatedPdfs=[];window.previewWasSynchronous=[];
-    window.pdfFileNames=[];
-    const createObjectURL=URL.createObjectURL;
-    URL.createObjectURL=file=>{
-      if(file.type==='application/pdf')window.pdfFileNames.push(file.name);
-      return createObjectURL.call(URL,file);
-    };
-    document.addEventListener('click',()=>{window.pdfClickTask=true;queueMicrotask(()=>{window.pdfClickTask=false;});},true);
-    const original=FormPdf.reservePreview;
-    FormPdf.reservePreview=()=>{
-      window.previewWasSynchronous.push(navigator.userActivation?.isActive??window.pdfClickTask);
-      const preview=original();
-      return {close:()=>preview.close(),show:async(blob,filename)=>{
-        window.generatedPdfs.push({filename,bytes:Array.from(new Uint8Array(await blob.arrayBuffer()))});
-        await preview.show(blob,filename);
-      }};
+    window.generatedPdfs=[];window.sharedPdfs=[];window.shareSupported=true;
+    Object.defineProperty(navigator,'canShare',{value:data=>{
+      window.checkedShareData=data;
+      return window.shareSupported;
+    }});
+    Object.defineProperty(navigator,'share',{value:async data=>{
+      window.sharedPdfs.push({data,checked:data===window.checkedShareData});
+    }});
+    const original=FormPdfViewer.show;
+    FormPdfViewer.show=async(blob,filename)=>{
+      window.generatedPdfs.push({filename,bytes:Array.from(new Uint8Array(await blob.arrayBuffer()))});
+      await original(blob,filename);
     };
   });
   await installCapture();
-  const collect=async(name,count,expectsViewer=true)=>{
+  const collect=async(name,count,pageCount=1)=>{
     try{await page.waitForFunction(n=>window.generatedPdfs.length===n,count);}
     catch(error){console.error('PDF flow diagnostics:',await page.evaluate(()=>({toast:document.querySelector('#toast')?.textContent,captured:window.generatedPdfs.length})),errors);throw error;}
     const result=await page.evaluate(()=>window.generatedPdfs.at(-1));
     fs.writeFileSync(path.join(output,name+'.pdf'),Buffer.from(result.bytes));
-    if(!expectsViewer)assert.equal(await page.evaluate(()=>window.pdfFileNames.at(-1)),result.filename);
-    const tabs=context.pages().filter(tab=>tab!==page);
-    assert.equal(tabs.length,expectsViewer?1:0);
-    for(const tab of tabs){
-      await tab.waitForURL(url=>url.pathname.includes('/__pdf_preview__/')||(!offline&&url.protocol==='blob:'),{waitUntil:'commit'});
-      if(tab.url().startsWith('http')){
-        const served=await page.evaluate(async url=>{
-          const response=await fetch(url);
-          return {type:response.headers.get('Content-Type'),disposition:response.headers.get('Content-Disposition'),
-            bytes:Array.from(new Uint8Array(await response.arrayBuffer()))};
-        },tab.url());
-        assert.equal(decodeURIComponent(new URL(tab.url()).pathname.split('/').at(-1)),result.filename);
-        assert.equal(served.type,'application/pdf');
-        assert.match(served.disposition,/^inline; filename="/);
-        assert.equal(decodeURIComponent(served.disposition.split("filename*=UTF-8''")[1]),result.filename);
-        assert.deepEqual(served.bytes,result.bytes);
-      }
-      await tab.close();
+    const viewer=page.locator('#pdfViewer');
+    await viewer.waitFor();
+    await page.waitForFunction(n=>document.querySelectorAll('#pdfViewerPages canvas').length===n,pageCount);
+    assert.equal(await viewer.locator('#pdfViewerName').textContent(),result.filename);
+    assert.equal(context.pages().length,1,'viewer stays inside ShiftMate');
+    for(const action of ['Share PDF','Save','Print']){
+      await viewer.getByRole('button',{name:action,exact:true}).click();
+      const shared=await page.evaluate(async verifyBytes=>{
+        const {data,checked}=window.sharedPdfs.at(-1);
+        const [file]=data.files;
+        return {keys:Object.keys(data),checked,count:data.files.length,isFile:file instanceof File,name:file.name,type:file.type,
+          bytes:verifyBytes?Array.from(new Uint8Array(await file.arrayBuffer())):null};
+      },action==='Share PDF');
+      assert.deepEqual(shared,{keys:['files'],checked:true,count:1,isFile:true,name:result.filename,type:'application/pdf',
+        bytes:action==='Share PDF'?result.bytes:null});
     }
+    await page.evaluate(()=>{window.shareSupported=false;});
+    const downloading=page.waitForEvent('download');
+    const sharesBefore=await page.evaluate(()=>window.sharedPdfs.length);
+    await viewer.getByRole('button',{name:'Share PDF',exact:true}).click();
+    const downloaded=await downloading;
+    assert.equal(downloaded.suggestedFilename(),result.filename);
+    assert.deepEqual(fs.readFileSync(await downloaded.path()),Buffer.from(result.bytes));
+    assert.equal(await page.evaluate(()=>window.sharedPdfs.length),sharesBefore);
+    assert.match(await viewer.locator('#pdfViewerStatus').textContent(),/Attach the downloaded PDF/);
+    await page.evaluate(()=>{window.shareSupported=true;});
+    const controls=viewer.locator('#pdfViewerControls');
+    const before=await controls.boundingBox();
+    const pageBounds=await viewer.locator('#pdfViewerPages').boundingBox();
+    assert.ok(before.y>=pageBounds.y+pageBounds.height,'controls must sit below the preview');
+    const originalWidth=await viewer.locator('canvas').first().evaluate(canvas=>canvas.clientWidth);
+    await viewer.locator('#pdfViewerPages').evaluate(el=>{
+      const finger=x=>new Touch({identifier:x,target:el,clientX:x,clientY:20});
+      el.dispatchEvent(new TouchEvent('touchstart',{touches:[finger(10),finger(50)],cancelable:true}));
+      el.dispatchEvent(new TouchEvent('touchmove',{touches:[finger(10),finger(90)],cancelable:true}));
+      el.dispatchEvent(new TouchEvent('touchend'));
+    });
+    assert.ok(await viewer.locator('canvas').first().evaluate(canvas=>canvas.clientWidth)>originalWidth);
+    await viewer.locator('#pdfViewerPages').evaluate(el=>el.scrollTop=el.scrollHeight);
+    assert.deepEqual(await controls.boundingBox(),before);
+    await viewer.getByRole('button',{name:'Close',exact:true}).click();
+    assert.equal(await viewer.isVisible(),false);
     return result;
   };
   // First generation is offline: every dependency/template must already be cached.
   await context.setOffline(offline);
+  await page.click('.nav-button[data-go="settings"]');
+  await assertMobileFontSize(['#employeeName','#serviceNumber','#classification']);
+  await page.click('.nav-button[data-go="home"]');
   await page.click('#homeGenerateLeave');
+  await assertMobileFontSize(['#leaveFormType','#leaveFormStart','#leaveFormEnd','#leaveFormComments']);
   await page.selectOption('#leaveFormType','sick:care');
   await page.fill('#leaveFormStart','2026-10-30');
   await page.fill('#leaveFormEnd','2026-10-30');
@@ -101,6 +131,7 @@ async function run(){
   await page.click('#generateLeaveDocument');
   assert.equal((await collect('leave-care-offline',1)).filename,'Leave Form_301026_D’Souza-José.pdf');
   await page.click('#homeGenerateSwap');
+  await assertMobileFontSize(['#swapPartnerName','#swapPartnerService','#swapRequestDate','#swapPartnerDate','#swapPartnerShift','#swapRequestStart']);
   await page.fill('#swapPartnerName','Taylor Exa:mple');
   await page.fill('#swapPartnerService','67890');
   await page.fill('#swapRequestDate','2026-10-30');
@@ -119,14 +150,6 @@ async function run(){
   await page.click('[data-swap-mode="roster"]');
   await page.click('#generateShiftSwap');
   assert.equal((await collect('swap-roster-offline',3)).filename,'Shift Swap Form_301026_Example.pdf');
-  assert.deepEqual(await page.evaluate(()=>window.previewWasSynchronous),[true,true,true]);
-  // A browser that refuses popups must still receive a valid download.
-  await page.evaluate(()=>{window.open=()=>null;});
-  const downloaded=page.waitForEvent('download');
-  await page.click('#generateShiftSwap');
-  const download=await downloaded;
-  assert.equal(download.suggestedFilename(),'Shift Swap Form_301026_Example.pdf');
-  await collect('swap-popup-blocked',4,false);
   // Unsupported WinAnsi names must remain visible through the Unicode fallback.
   const unicode=await page.evaluate(async()=>{
     const doc=await FormPdf.create('swap'),p=await doc.addPage();
@@ -140,7 +163,7 @@ async function run(){
   await page.waitForFunction(()=>Boolean(window.FormPdf));
   const assets=await page.evaluate(async()=>{
     const results=[];
-    for(const file of ['./leave-form-template.pdf','./shift-change-form-template.png','./formPdf.js?v=5','./vendor/pdf-lib.min.js?v=1.17.1']){
+    for(const file of ['./leave-form-template.pdf','./shift-change-form-template.png','./formPdf.js?v=6','./vendor/pdfjs/pdf.min.mjs','./vendor/pdfjs/pdf.worker.min.mjs']){
       const response=await fetch(file);results.push([file,response.ok,response.headers.get('Content-Type')]);
     }
     return results;
@@ -167,14 +190,34 @@ async function run(){
   await page.fill('.leave-group-hours[data-group-key="annual"]','9.2');
   assert.equal(await page.locator('#leaveFormType').isDisabled(),true);
   const saved=await page.evaluate(()=>localStorage.getItem('ptaV2Current'));
-  await page.evaluate(()=>{window.open=()=>null;});
-  const leaveDownload=page.waitForEvent('download');
   await page.click('#generateLeaveDocument');
-  assert.equal((await leaveDownload).suggestedFilename(),'Leave Form_011126_D’Souza-José.pdf');
-  assert.equal((await collect('leave-mixed-groups',1,false)).filename,'Leave Form_011126_D’Souza-José.pdf');
+  assert.equal((await collect('leave-mixed-groups',1,3)).filename,'Leave Form_011126_D’Souza-José.pdf');
   assert.equal(await page.evaluate(()=>localStorage.getItem('ptaV2Current')),saved,'Generating a form must not mutate saved data');
+  const desktop=await browser.newContext();
+  const printPage=await desktop.newPage();
+  await printPage.goto(base);
+  await printPage.evaluate(async bytes=>{
+    window.print=()=>{
+      window.printCheck={title:document.title,pages:document.querySelectorAll('#pdfPrintPages canvas').length};
+    };
+    await FormPdfViewer.show(new Blob([new Uint8Array(bytes)],{type:'application/pdf'}),'Leave Form_011126_Test.pdf');
+  },Array.from(fs.readFileSync(path.join(output,'leave-mixed-groups.pdf'))));
+  await printPage.getByRole('button',{name:'Print',exact:true}).click();
+  assert.deepEqual(await printPage.evaluate(()=>window.printCheck),{title:'Leave Form_011126_Test.pdf',pages:3});
+  if(engine==='chromium'){
+    const printed=await printPage.pdf({preferCSSPageSize:true});
+    const printedPages=await printPage.evaluate(async bytes=>{
+      const pdf=await PDFLib.PDFDocument.load(new Uint8Array(bytes));
+      return pdf.getPages().map(page=>[page.getWidth(),page.getHeight()]);
+    },Array.from(printed));
+    assert.equal(printedPages.length,3);
+    assert.ok(printedPages.every(([width,height])=>Math.abs(width-595.28)<2&&Math.abs(height-841.89)<2));
+  }
+  await printPage.getByRole('button',{name:'Close',exact:true}).click();
+  await printPage.waitForFunction(()=>document.querySelector('#pdfPrintPages').childElementCount===0);
+  await desktop.close();
   assert.deepEqual(errors,[]);
-  fs.writeFileSync(path.join(output,'browser-results.json'),JSON.stringify({engine,viewport:'iPhone 13',offline,firstUse:true,popupActivation:true,assets,errors},null,2));
-  console.log(`${engine} iPhone viewport checks passed: ${offline?'offline first-use':'online'} Leave, single/roster Swap, Unicode, user activation, popup fallback, mixed Leave groups/data preservation, and ${offline?'offline ':''}reload.`);
+  fs.writeFileSync(path.join(output,'browser-results.json'),JSON.stringify({engine,viewport:'iPhone 13',offline,assets,errors},null,2));
+  console.log(`${engine} PDF viewer checks passed: both forms, named sharing/saving, desktop print, pinned controls, and offline reload.`);
 }
 run().catch(error=>{console.error(error);process.exitCode=1;}).finally(async()=>{if(browser)await browser.close();if(server)server.close();});

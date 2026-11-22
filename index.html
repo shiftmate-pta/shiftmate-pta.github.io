@@ -8,10 +8,11 @@
 <meta content="ShiftMate" name="apple-mobile-web-app-title"/>
 <meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"/>
 <title>ShiftMate</title>
-<link href="styles.css?v=3.1.13-pta-forms" rel="stylesheet"/>
+<link href="styles.css?v=3.1.17-pdf-viewer" rel="stylesheet"/>
 <link href="apple-touch-icon.png?v=3.1.13-pta-forms" rel="apple-touch-icon"/>
 <link href="manifest.json?v=3.1.13-pta-forms" rel="manifest"/>
 <meta content="#05090b" name="theme-color"/>
+<link href="pdfViewer.css?v=3" rel="stylesheet"/>
 </head>
 <body>
 
@@ -324,7 +325,7 @@
 </details>
 <details class="settings-section">
 <summary><span>About</span><small>ShiftMate app information</small></summary>
-<div class="settings-note settings-wide"><strong>ShiftMate</strong><br/>Version 3.1.16</div>
+<div class="settings-note settings-wide"><strong>ShiftMate</strong><br/>Version 3.1.17</div>
 </details>
 <div class="action-grid settings-actions">
 <button class="primary" id="saveCurrent">Save settings</button>
@@ -414,7 +415,24 @@
 <script src="storage.js?v=8.3"></script>
 <script src="vendor/pdf-lib.min.js?v=1.17.1"></script>
 <script src="formPdfFields.js?v=2"></script>
-<script src="formPdf.js?v=5"></script>
-<script src="app.js?v=3.1.16-named-native-pdf"></script>
+<script src="formPdf.js?v=6"></script>
+<dialog id="pdfViewer" aria-labelledby="pdfViewerName">
+  <header>
+    <h2 id="pdfViewerName"></h2>
+  </header>
+  <div id="pdfViewerPages" tabindex="0" aria-label="PDF pages"></div>
+  <footer>
+    <div id="pdfViewerControls">
+      <button type="button" id="pdfViewerShare">Share PDF</button>
+      <button type="button" id="pdfViewerSave">Save</button>
+      <button type="button" id="pdfViewerPrint">Print</button>
+      <button type="button" id="pdfViewerClose" autofocus>Close</button>
+    </div>
+    <div id="pdfViewerStatus" role="status"></div>
+  </footer>
+</dialog>
+<div id="pdfPrintPages" aria-hidden="true"></div>
+<script src="pdfViewer.js?v=2"></script>
+<script src="app.js?v=3.1.17-pdf-viewer"></script>
 </body>
 </html>

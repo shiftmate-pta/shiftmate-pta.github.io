@@ -709,7 +709,6 @@
     const evidence=$('#leaveEvidence')?.value==='yes';
     const today=new Date();
 
-    const preview=FormPdf.reservePreview();
     try{
       const document=await FormPdf.create('leave');
       const map=document.map;
@@ -738,11 +737,10 @@
         page.check(map.boxes.evidenceYes,evidence);
         page.check(map.boxes.evidenceNo,!evidence);
       }
-      await preview.show(await document.save(),FormPdf.filename('Leave Form',localISO(adjustedEnd),name));
+      await FormPdfViewer.show(await document.save(),FormPdf.filename('Leave Form',localISO(adjustedEnd),name));
       $('#leaveFormSheet').hidden=true;pendingLeaveDocument=null;
       toast(groups.length>1?`${groups.length} separate leave forms generated`:'Leave form generated');
     }catch(error){
-      preview.close();
       console.error(error);
       toast(error.message||'Could not generate leave PDF');
     }
@@ -2449,7 +2447,6 @@ const perthShiftLabels={PN:'Perth Assist Arvo',PA:'Perth Afternoon',PD:'Perth As
     const neutralCost=Boolean($('#swapNeutralCost')?.checked);
     const others=String($('#swapOthers')?.value||'').trim();
     const todayText=swapFmtDate(new Date());
-    const preview=FormPdf.reservePreview();
     try{
       const document=await FormPdf.create('swap');
       const map=document.map;
@@ -2483,10 +2480,9 @@ const perthShiftLabels={PN:'Perth Assist Arvo',PA:'Perth Afternoon',PD:'Perth As
           await page.text(fields.date,todayText);
         }
       }
-      await preview.show(await document.save(),FormPdf.filename('Shift Swap Form',localISO(filenameDate||entries[0].request.date),partnerName));
+      await FormPdfViewer.show(await document.save(),FormPdf.filename('Shift Swap Form',localISO(filenameDate||entries[0].request.date),partnerName));
       toast(entries.length>1?`${entries.length} shift swap forms generated`:'Shift swap form generated');
     }catch(error){
-      preview.close();
       console.error(error);
       toast(error.message||'Could not generate shift swap form');
     }
