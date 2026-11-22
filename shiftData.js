@@ -21,9 +21,10 @@ window.LINE_ALLOWANCE_DISTANCE_META = {
   provisional:{source:'OSRM road route using OpenStreetMap station coordinates, calculated 10 October 2026',status:'provisional pending an agreed updated Schedule 2'}
 };
 window.LINE_ALLOWANCE_VALIDATED_KM = {
-  "ARMADALE":{"EB":54.3,"EP":10.7}
+  "ARMADALE":{"EB":54.3,"EP":10.7,"PC":10.7}
 };
 window.LINE_ALLOWANCE_VALIDATED_META = {
+  PC:{source:'October 2026 payroll, Burswood to Perth',status:'Payroll-confirmed route'},
   EP:{source:'15 October 2026 payroll, Burswood to East Perth Station',status:'Payroll-confirmed route'}
 };
 window.SHIFT_STATION_CODE_BY_NAME = {
@@ -58,7 +59,7 @@ window.SHIFT_DATA = {"10":{"name":"Daglish","line":"FREMANTLE","designatedLine":
   for(const [code,name] of Object.entries(perthNames))shifts[code].name=name;
   Object.assign(window.SHIFT_DATA,{
     SAFEK:{name:'Kwinana Training',times:trainingTimes,training:{
-      JOONDALUP:83.4,MIDLAND:85.6,FREMANTLE:76,ARMADALE:76.4,
+      JOONDALUP:83.4,MIDLAND:85.6,FREMANTLE:76,ARMADALE:80.8,
       SOUTHERN_MANDURAH:16,PERTH:78.8,NORTHERN_MANDURAH:39.4,AIRPORT:102.2
     }},
     BH:{name:'Guildford Training',times:trainingTimes,training:{

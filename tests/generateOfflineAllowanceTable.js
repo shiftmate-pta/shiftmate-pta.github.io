@@ -60,12 +60,12 @@ for(const [homeLine,homeLabel] of Object.entries(ROSTER_LINES)){
         : 'NORTHERN_MANDURAH_BULLCREEK';
     }
     let distance,status;
-    if(Object.hasOwn(LINE_ALLOWANCE_KM[matrixKey]||{},destination.stationCode)){
-      distance=LINE_ALLOWANCE_KM[matrixKey][destination.stationCode];
-      status='Agreement Schedule 2';
-    }else if(Object.hasOwn(LINE_ALLOWANCE_VALIDATED_KM[matrixKey]||{},destination.stationCode)){
+    if(Object.hasOwn(LINE_ALLOWANCE_VALIDATED_KM[matrixKey]||{},destination.stationCode)){
       distance=LINE_ALLOWANCE_VALIDATED_KM[matrixKey][destination.stationCode];
       status='Validated against supplied payroll test';
+    }else     if(Object.hasOwn(LINE_ALLOWANCE_KM[matrixKey]||{},destination.stationCode)){
+      distance=LINE_ALLOWANCE_KM[matrixKey][destination.stationCode];
+      status='Agreement Schedule 2';
     }else{
       distance=LINE_ALLOWANCE_PROVISIONAL_KM[matrixKey]?.[destination.stationCode];
       status='Provisional calculated route';
@@ -98,6 +98,7 @@ const notes=[
   ['Agreement distances','Transit Officers Enterprise Agreement 2022, Schedule 2; preserved exactly.'],
   ['Validated distance','Armadale home to Ellenbrook duty start is retained at 34.38 km because it reconciles the supplied actual payroll test.'],
   ['Provisional distances','Network extensions absent from Schedule 2 use OSRM road routes and OpenStreetMap station coordinates. They require replacement if PTA/union supplies an agreed updated table.'],
+  ['Perth travel','October 2026 payroll confirms 10.7 km from the Armadale home line to Perth station.'],
   ['CMR travel','15 October 2026 payroll confirms 10.7 km return from the Armadale home line to East Perth Station. Other East Perth routes are unverified.'],
   []
 ];

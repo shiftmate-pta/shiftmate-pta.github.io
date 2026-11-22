@@ -1923,6 +1923,41 @@
     });
   }
 
+  function renderPayslipComparison(result,cycleStart){
+    const panel=$('#payslipComparison'),select=$('#payslipEntitlement');
+    const paid=$('#payslipAmount'),message=$('#payslipDiscrepancy');
+    const items=[...result.allowanceDetails,...result.reimbursementDetails];
+    panel.hidden=items.length===0;
+    const signature=JSON.stringify([cycleStart,items.map(({date,code,type,amount})=>[date,code,type,amount])]);
+    if(panel.dataset.comparison===signature)return;
+    panel.dataset.comparison=signature;
+    select.replaceChildren(new Option('Select a payment',''));
+    items.forEach((item,index)=>select.add(new Option(item.date+' · '+item.code+' · '+item.type,String(index))));
+    paid.value='';message.textContent='';
+    const clauses={
+      'Morning allowance':'5.1.1(c) and 5.1.2(a)',
+      'Afternoon allowance':'5.1.1(a) and 5.1.2(a)',
+      'Night allowance':'5.1.1(b) and 5.1.2(b)',
+      'Early/late shift allowance':'5.1.3',
+      'Supplementary training penalty':'4.3',
+      'Training travel allowance':'5.2.5',
+      'Training kilometre reimbursement':'5.2.5',
+      'Other line allowance':'5.2.2',
+      'Kilometre reimbursement':'5.2.2',
+    };
+    const compare=()=>{
+      message.textContent='';
+      if(select.value===''||paid.value===''||!paid.validity.valid)return;
+      const item=items[Number(select.value)],actual=paid.valueAsNumber;
+      if(!item||!Number.isFinite(actual)||Math.round(actual*100)>=Math.round(item.amount*100))return;
+      const clause=clauses[item.type];
+      message.textContent='Possible payroll discrepancy — '+item.date+' '+item.code+' '+item.type+'. Expected '+money(item.amount)+
+        '; payslip '+money(actual)+(clause?'. Agreement clause '+clause:'')+'.';
+    };
+    select.onchange=()=>{paid.value='';compare()};
+    paid.oninput=compare;
+  }
+
   function renderLeaveAudit(result){
     const panel=$('#leaveCalculationAudit');if(!panel)return;
     panel.innerHTML=(result.annualLeaveDetails||[]).map(item=>`<div>${esc(item.date)}: ${item.hours} hrs × ${money(item.baseRate)} base + ${item.hours} hrs × $${Number(item.loadingRate).toFixed(6)} loading = ${money(item.amount)}${item.capped?' (cap applied)':''}</div>`).join('')+`<div>Pre-tax packaging: ${money(result.deductions?.salaryPackaging)}; pre-tax super: ${money(result.deductions?.superPreTax)}; post-tax deductions: ${money(result.deductions?.postTax)}</div>`+(result.calculationWarnings||[]).map(message=>`<p>${esc(message)}</p>`).join('');
@@ -1939,6 +1974,7 @@
     resolveAgreementSettings();
     latestResult=PayCalc.calculate(current);
     renderLeaveAudit(latestResult);
+    renderPayslipComparison(latestResult,current.startDate);
     latestResult.dayTotals.forEach((row,i)=>{
       const card=$$('.day-card')[i];
       if(!card) return;
@@ -2159,7 +2195,7 @@
     $('#payStatusLabel').textContent=statusLabel(status);$('#payRange').innerHTML=`${peLabel(cycle.startDate)}<small class="cycle-range-sub">${cycleDateRange(cycle.startDate)}</small>`;
     $('#payPayday').textContent=`Payday ${paydayFor(cycle.startDate).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'})}`;
     $('#workedPay').textContent=money(result.breakdown.workedPay);$('#publicHolidayPay').textContent=money(result.breakdown.publicHolidayPay);
-    renderLeaveAudit(result);renderPublicHolidayBreakdown(result.publicHolidayDetails);$('#annualLeavePay').textContent=money(result.breakdown.annualLeavePay);
+    renderLeaveAudit(result);renderPayslipComparison(result,cycle.startDate);renderPublicHolidayBreakdown(result.publicHolidayDetails);$('#annualLeavePay').textContent=money(result.breakdown.annualLeavePay);
     $('#sickLeavePay').textContent=money(result.breakdown.sickLeavePay);$('#lslPay').textContent=money(result.breakdown.lslPay);
     $('#easterLeavePay').textContent=money(result.breakdown.easterLeavePay);
     $('#lwopPay').textContent=money(result.breakdown.lwopPay);$('#extrasPay').textContent=money(result.breakdown.extrasPay);

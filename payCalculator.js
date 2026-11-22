@@ -84,10 +84,10 @@ window.PayCalc = (() => {
     if(!home||!worked||home===worked)return 0;
     let matrixKey=home;
     if(home==='NORTHERN_MANDURAH')matrixKey=worked==='SOUTHERN_MANDURAH'?'NORTHERN_MANDURAH_AUBINGROVE':'NORTHERN_MANDURAH_BULLCREEK';
-    const table=(window.LINE_ALLOWANCE_KM||{})[matrixKey];
-    if(stationCode&&table&&Object.prototype.hasOwnProperty.call(table,stationCode))return Number(table[stationCode]);
     const validatedTable=(window.LINE_ALLOWANCE_VALIDATED_KM||{})[matrixKey];
     if(stationCode&&validatedTable&&Object.prototype.hasOwnProperty.call(validatedTable,stationCode))return Number(validatedTable[stationCode]);
+    const table=(window.LINE_ALLOWANCE_KM||{})[matrixKey];
+    if(stationCode&&table&&Object.prototype.hasOwnProperty.call(table,stationCode))return Number(table[stationCode]);
     const provisionalTable=(window.LINE_ALLOWANCE_PROVISIONAL_KM||{})[matrixKey];
     return stationCode&&provisionalTable&&Object.prototype.hasOwnProperty.call(provisionalTable,stationCode)
       ? Number(provisionalTable[stationCode])
@@ -96,7 +96,7 @@ window.PayCalc = (() => {
   const distanceMeta=(homeRoster,workedRoster,stationCode)=>{
     const home=designatedLineForRoster(homeRoster),worked=designatedLineForRoster(workedRoster);
     const key=home==='NORTHERN_MANDURAH'?(worked==='SOUTHERN_MANDURAH'?'NORTHERN_MANDURAH_AUBINGROVE':'NORTHERN_MANDURAH_BULLCREEK'):home;
-    const kind=Object.hasOwn((window.LINE_ALLOWANCE_KM||{})[key]||{},stationCode)?'agreement':Object.hasOwn((window.LINE_ALLOWANCE_VALIDATED_KM||{})[key]||{},stationCode)?'validated':'provisional';
+    const kind=Object.hasOwn((window.LINE_ALLOWANCE_VALIDATED_KM||{})[key]||{},stationCode)?'validated':Object.hasOwn((window.LINE_ALLOWANCE_KM||{})[key]||{},stationCode)?'agreement':'provisional';
     return (kind==='validated'&&window.LINE_ALLOWANCE_VALIDATED_META?.[stationCode])
       ||(window.LINE_ALLOWANCE_DISTANCE_META||{})[kind]||{};
   };
@@ -125,8 +125,9 @@ window.PayCalc = (() => {
   const leaveHoursUsed=(row,date,settings={})=>{
     const data=window.SHIFT_DATA[row.code];
     if(!data?.leaveType)return 0;
+    if(data.leaveType==='easter'&&(row.type==='Off'||date<easterSunday(date.getFullYear())))return 0;
     const key=iso(date),holiday=waPublicHolidays(date.getFullYear(),settings.customPublicHolidays).has(key);
-    if(holiday&&!['lsl','lwop','parental','paid-parental','unpaid-parental'].includes(data.leaveType))return 0;
+    if(holiday&&!['easter','lsl','lwop','parental','paid-parental','unpaid-parental'].includes(data.leaveType))return 0;
     if(row.leaveHours!==''&&row.leaveHours!=null)return Math.max(0,Number(row.leaveHours)||0);
     if(row.start&&row.finish)return ((mins(row.finish)-mins(row.start)+1440)%1440)/60;
     return data.defaultHours||10;
@@ -188,7 +189,16 @@ window.PayCalc = (() => {
       if(data&&data.leaveType){
         const defaultLeaveHours=duration/60;
         let leaveHours=row.leaveHours===''||row.leaveHours==null?defaultLeaveHours:Math.max(0,Number(row.leaveHours)||0);
-        if(dayHoliday&&!['lsl','lwop','parental','paid-parental','unpaid-parental'].includes(data.leaveType)){
+        if(data.leaveType==='easter'){
+          // ADL records use of an approved entitlement under clause 6.2.
+          const easterHours=leaveHoursUsed(row,date,settings);
+          const amount=round(easterHours*settings.baseRate);
+          dayGross+=amount;dayHours+=easterHours;breakdown.easterLeavePay+=amount;
+          leaveUsage.easter+=easterHours;
+          if(row.type!=='Off'&&date<easterSunday(date.getFullYear())){
+            calculationWarnings.add('Easter Sunday additional leave cannot be taken before it accrues in the calendar year.');
+          }
+        }else if(dayHoliday&&!['lsl','lwop','parental','paid-parental','unpaid-parental'].includes(data.leaveType)){
           const phHours=publicHolidayHours(row,date,settings,leaveHours+(data.leaveType==='sick'?Math.max(0,Number(row.annualLeaveHours)||0):0));
           const amount=round(phHours*settings.baseRate);dayGross+=amount;dayHours+=phHours;breakdown.publicHolidayPay+=amount;
           publicHolidayDetails.push({date:iso(date),name:dayHoliday,type:'Public holiday during paid leave',hours:phHours,rate:settings.baseRate,amount,dayIndex:i});
@@ -205,9 +215,6 @@ window.PayCalc = (() => {
             const annualAmount=addAnnual(info,annualPart);
             dayGross+=annualAmount;dayHours+=annualPart;breakdown.annualLeavePay+=annualAmount;
           }
-        }else if(data.leaveType==='easter'){
-          const amount=round(leaveHours*settings.baseRate);
-          leaveUsage.easter+=leaveHours;dayGross+=amount;dayHours+=leaveHours;breakdown.easterLeavePay+=amount;
         }else if(data.leaveType==='lsl'){
           leaveUsage.longService+=leaveHours;
           const amount=leaveHours*settings.baseRate;dayGross+=amount;dayHours+=leaveHours;breakdown.lslPay+=amount;
@@ -345,7 +352,7 @@ window.PayCalc = (() => {
           if(nonPhHours>0){
             const nominalStart=mins(nominal[0]);
             let allowance=data.allowance;
-            if(data.admin){
+            if(data.admin||eligibleTraining){
               if(nominalStart>=1080||nominalStart<240)allowance='Night';
               else if(nominalStart<=330||nominalFinishAbs>=1110)allowance='Morn/Aft';
             }
@@ -355,8 +362,8 @@ window.PayCalc = (() => {
               allowanceDetails.push({type:'Supplementary training penalty',date:iso(date),dayIndex:i,code:row.code,hours:allowanceHours,amount});
             }
             if(allowance==='Morn/Aft'&&allowanceHours>0){
-              const payableAllowanceHours=data.admin?allowanceHours:Math.ceil(allowanceHours-1e-9);
-              const morning=data.admin?nominalStart<=330:nominalStart<720;
+              const payableAllowanceHours=customRoster?allowanceHours:Math.ceil(allowanceHours-1e-9);
+              const morning=customRoster?nominalStart<=330:nominalStart<720;
               const amount=payableAllowanceHours*payrollRatesForDate(date,settings).maRate;extras+=amount;allowanceDetails.push({type:morning?'Morning allowance':'Afternoon allowance',date:iso(date),dayIndex:i,code:row.code,hours:payableAllowanceHours,amount});
             }
             if(allowance==='Night'&&allowanceHours>0){
@@ -365,7 +372,7 @@ window.PayCalc = (() => {
             const finishDate=addDays(date,mins(nominal[1])<=mins(nominal[0])?1:0);
             const rosterStartIsWeekday=date.getDay()>=1&&date.getDay()<=5;
             const qualifyingEndpoint=rosterStartIsWeekday&&((mins(nominal[0])>=61&&mins(nominal[0])<=239)||(mins(nominal[1])>=61&&mins(nominal[1])<=239&&finishDate.getDay()>=1&&finishDate.getDay()<=5));
-            if(qualifyingEndpoint&&!data.training){
+            if(qualifyingEndpoint&&(!data.training||eligibleTraining)){
               const amount=payrollRatesForDate(date,settings).earlyLateRate;extras+=amount;allowanceDetails.push({type:'Early/late shift allowance',date:iso(date),dayIndex:i,code:row.code,hours:1,amount});
             }
             dayGross+=extras;breakdown.extrasPay+=extras;
@@ -420,13 +427,20 @@ window.PayCalc = (() => {
             }
           }
         }
-      }else if(!data&&dayHoliday){
-        const phHours=publicHolidayHours(row,date,settings);
-        const amount=round(phHours*settings.baseRate);dayGross+=amount;dayHours+=phHours;breakdown.publicHolidayPay+=amount;
-        publicHolidayDetails.push({date:iso(date),name:dayHoliday,type:'Public holiday not worked',hours:phHours,rate:settings.baseRate,amount,dayIndex:i});
       }
 
       rows[i].prePhGross=dayGross;rows[i].dayHours=dayHours;rows[i].additionalPay=additionalPay;
+    });
+
+    // Work crossing midnight counts on the holiday even when its roster row is Off.
+    rows.forEach(info=>{
+      const {row,i,date,data}=info;
+      const dateKey=iso(date),dayHoliday=holidays.get(dateKey);
+      if(data||!dayHoliday||phBuckets.has(dateKey))return;
+      const phHours=publicHolidayHours(row,date,settings);
+      const amount=round(phHours*settings.baseRate);
+      info.prePhGross+=amount;info.dayHours+=phHours;breakdown.publicHolidayPay+=amount;
+      publicHolidayDetails.push({date:dateKey,name:dayHoliday,type:'Public holiday not worked',hours:phHours,rate:settings.baseRate,amount,dayIndex:i});
     });
 
     phBuckets.forEach(bucket=>{

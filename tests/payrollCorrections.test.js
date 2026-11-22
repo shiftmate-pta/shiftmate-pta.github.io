@@ -39,6 +39,12 @@ close(easter.leaveUsage.easter,10);
 close(easter.leaveUsage.annual,0);
 assert.equal(easter.annualLeaveDetails.length,0);
 
+assert.equal(calc([{code:'ADL'}],'2026-01-02').gross,0);
+assert.equal(calc([{code:'ADL',type:'Off'}],'2026-10-31').gross,0);
+const adlOnHoliday=calc([{code:'ADL',leaveHours:8}],'2026-09-28');
+close(adlOnHoliday.breakdown.easterLeavePay,354.96);
+assert.equal(adlOnHoliday.publicHolidayDetails.length,0);
+
 const supervisor={code:'AA1',type:'Picked-up OT',hd:true,actingSupervisor:true,start:'15:30',finish:'01:30'};
 const twoShifts=calc([supervisor,supervisor],'2026-10-12');
 close(twoShifts.dayTotals[0].additionalPay,941.47);
