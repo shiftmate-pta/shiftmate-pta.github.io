@@ -36,7 +36,7 @@ for(const [homeLine,homeLabel] of Object.entries(ROSTER_LINES)){
   const destinations=new Map();
 
   for(const [shiftCode,data] of Object.entries(SHIFT_DATA)){
-    if(data.leaveType)continue;
+    if(data.leaveType||data.training)continue;
     const workedDesignated=DESIGNATED_LINE_BY_ROSTER[data.line]||data.designatedLine||data.line;
     if(homeDesignated===workedDesignated)continue;
     const stationCode=data.stationCode||SHIFT_STATION_CODE_BY_NAME[data.name];
@@ -44,7 +44,7 @@ for(const [homeLine,homeLabel] of Object.entries(ROSTER_LINES)){
     const destination=destinations.get(key)||{
       roster:data.line,
       designated:workedDesignated,
-      location:data.name,
+      location:data.location||data.name,
       stationCode,
       shiftCodes:[]
     };
@@ -70,7 +70,10 @@ for(const [homeLine,homeLabel] of Object.entries(ROSTER_LINES)){
       distance=LINE_ALLOWANCE_PROVISIONAL_KM[matrixKey]?.[destination.stationCode];
       status='Provisional calculated route';
     }
-    if(!Number.isFinite(Number(distance)))throw new Error(`Missing distance: ${homeLine} -> ${destination.roster} ${destination.location}`);
+    if(!Number.isFinite(Number(distance))){
+      if(destination.stationCode!=='EP')throw new Error(`Missing distance: ${homeLine} -> ${destination.roster} ${destination.location}`);
+      status='East Perth route awaiting verification';
+    }
 
     rows.push([
       homeLabel,
@@ -79,10 +82,10 @@ for(const [homeLine,homeLabel] of Object.entries(ROSTER_LINES)){
       destination.designated,
       destination.location,
       destination.stationCode,
-      Number(distance).toFixed(2),
+      distance==null?'':Number(distance).toFixed(2),
       status,
       'Yes — 1 hour at base rate',
-      (Number(distance)*.98).toFixed(2),
+      distance==null?'':(Number(distance)*.98).toFixed(2),
       destination.shiftCodes.sort().join(' ')
     ]);
   }
@@ -95,6 +98,7 @@ const notes=[
   ['Agreement distances','Transit Officers Enterprise Agreement 2022, Schedule 2; preserved exactly.'],
   ['Validated distance','Armadale home to Ellenbrook duty start is retained at 34.38 km because it reconciles the supplied actual payroll test.'],
   ['Provisional distances','Network extensions absent from Schedule 2 use OSRM road routes and OpenStreetMap station coordinates. They require replacement if PTA/union supplies an agreed updated table.'],
+  ['CMR travel','15 October 2026 payroll confirms 10.7 km return from the Armadale home line to East Perth Station. Other East Perth routes are unverified.'],
   []
 ];
 

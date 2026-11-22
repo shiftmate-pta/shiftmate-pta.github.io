@@ -53,7 +53,7 @@ let sameLineCombinations=0;
 for(const homeLine of Object.keys(ROSTER_LINES)){
   const homeDesignated=DESIGNATED_LINE_BY_ROSTER[homeLine];
   for(const [code,data] of Object.entries(SHIFT_DATA)){
-    if(data.leaveType)continue;
+    if(data.leaveType||data.training)continue;
     const workedDesignated=DESIGNATED_LINE_BY_ROSTER[data.line]||data.designatedLine||data.line;
     const result=PayCalc.calculate({
       startDate:'2026-10-05',
@@ -72,6 +72,11 @@ for(const homeLine of Object.keys(ROSTER_LINES)){
 
     crossLineCombinations++;
     assert.equal(otherLine.length,1,`${homeLine} -> ${code} did not receive the one-hour other-line payment`);
+    if(code==='AD-CMR'&&homeDesignated!=='ARMADALE'){
+      assert.equal(otherLine[0].distanceMissing,true);
+      assert.equal(mileage.length,0);
+      continue;
+    }
     assert.equal(mileage.length,1,`${homeLine} -> ${code} has no kilometre reimbursement route`);
     assert.ok(Number.isFinite(mileage[0].distance)&&mileage[0].distance>0,`${homeLine} -> ${code} has an invalid distance`);
 
@@ -85,6 +90,6 @@ for(const homeLine of Object.keys(ROSTER_LINES)){
   }
 }
 
-assert.equal(crossLineCombinations,1033,'the expected cross-line combination count changed');
-assert.equal(sameLineCombinations,137,'the expected same-line combination count changed');
+assert.equal(crossLineCombinations,1078,'the expected cross-line combination count changed');
+assert.equal(sameLineCombinations,142,'the expected same-line combination count changed');
 console.log(`offline allowance coverage passed: ${crossLineCombinations} cross-line and ${sameLineCombinations} same-line shift combinations`);
