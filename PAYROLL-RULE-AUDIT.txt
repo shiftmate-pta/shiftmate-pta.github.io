@@ -6,6 +6,7 @@ arrangements or employer directives before relying on affected estimates.
 
 Agreement: https://downloads.wairc.wa.gov.au/agreements/pub070.pdf
 Register: https://www.wairc.wa.gov.au/resources/agreements?id=PUB070
+REA4 reference wages: https://downloads.wairc.wa.gov.au/agreements/pub071.pdf
 ATO 2026 Schedule 1: https://www.legislation.gov.au/F2026L00716/latest/text
 ATO 2025 Schedule 1: https://www.legislation.gov.au/F2025L00647/asmade/2025-06-04/text/original/pdf
 ATO 2024 Schedule 1: https://www.legislation.gov.au/F2024L00664/asmade/2024-06-11/text/original/pdf
@@ -46,9 +47,11 @@ Shift allowances and training
   The separate per-shift amount applies to qualifying ordinary endpoints
   01:01–03:59, subject to the weekend rule. Rates are 13.5% and 16% of the
   hourly reference rate, with the latter also used for the per-shift amount.
-  October $4.87 afternoon and $5.77 additional allowance inputs were
-  corroborated in payroll records; the current PTA rate notice was not
-  available. Station fractional-hour rounding remains a payroll convention
+  The replacement Railway Employees agreement, Schedule A, gives REA4
+  weekly base pay of $1,441.50 from 22 May 2026. Dividing by 40 yields
+  $36.0375. Applying 13.5% and 16% gives cent-rounded rates of $4.87
+  and $5.77. This derives the rates independently of the payslips.
+  Station fractional-hour rounding remains a payroll convention
   pending a directive. Training and administration use worked hours for
   the allowance, excluding booked-off leave.
   Clause 4.3 pays base plus 15% for employer-directed supplementary
@@ -67,7 +70,10 @@ Travel and vehicle payments
   from 1 July 2026 under Circular 6/2026. Armadale SAFEK 80.8 km and Perth
   10.7 km are payroll-evidenced route overrides, with the SAFEK manual
   distance still taking precedence. No inference of formal Schedule 2
-  amendment is made. Coverage: trainingAdmin and offlineAllowanceCoverage.
+  amendment is made. In particular Schedule 2 lists 76.4 km return for
+  Kwinana Butcher Street from Armadale, while the 80.8 km override matches
+  payroll and still needs the agreed-route or actual site record.
+  Coverage: trainingAdmin and offlineAllowanceCoverage.
 
 Leave and public holidays
   Clauses 6.3, 6.5 and 6.5.7 with the August 2026 PTA/RTBU arrangement
