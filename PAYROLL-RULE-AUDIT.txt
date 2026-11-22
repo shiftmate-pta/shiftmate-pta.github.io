@@ -67,12 +67,10 @@ Travel and vehicle payments
   outside designated lines uses clause 5.2.5 for non-trainees.
   Guildford is 22.6 km return from the Armadale home-line reference station
   in Schedule 2. Use 98 cents/km for voluntary metropolitan vehicle use
-  from 1 July 2026 under Circular 6/2026. Armadale SAFEK 80.8 km and Perth
-  10.7 km are payroll-evidenced route overrides, with the SAFEK manual
-  distance still taking precedence. No inference of formal Schedule 2
-  amendment is made. In particular Schedule 2 lists 76.4 km return for
-  Kwinana Butcher Street from Armadale, while the 80.8 km override matches
-  payroll and still needs the agreed-route or actual site record.
+  from 1 July 2026 under Circular 6/2026. Schedule 2 supplies 76.4 km
+  return for Kwinana Butcher Street from Armadale. Use the existing
+  explicit SAFEK distance input for a verified alternative such as
+  80.8 km. Perth 10.7 km remains a payroll-evidenced route override.
   Coverage: trainingAdmin and offlineAllowanceCoverage.
 
 Leave and public holidays
@@ -107,7 +105,10 @@ PAYG and deductions
   cash net only. Other scales, Medicare adjustments, study/training
   loans, tax offsets and special back-payment methods require separate
   assessment. No additional withholding is inferred from a payslip.
-  The mileage component is still excluded in the estimate and flagged.
+  Legacy cycles lacking a mileage PAYG selection display an unconfirmed
+  estimate with mileage excluded. Once verified, choose exclusion, full
+  withholding, or the ATO business cents-per-km method. The latter needs
+  the prior eligible business kilometres for the payment income year.
   A qualifying private-car cents/km allowance generally requires
   withholding on the rate excess for up to 5,000 business kilometres and
   on all amounts above the limit. The 2026–27 approved rate is 91 cents.

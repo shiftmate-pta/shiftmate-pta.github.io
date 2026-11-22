@@ -94,6 +94,25 @@ assert.equal(packaged.tax,830);
 close(packaged.net,2847.60);
 assert.equal(grossAt(4443.78,{extraTax:12}).tax,864);
 
+const mileageCycle=[{code:'BH'},...Array.from({length:7},()=>({code:'Sick',leaveHours:10}))];
+const unconfirmed=calc(mileageCycle,'2026-10-05');
+const excluded=calc(mileageCycle,'2026-10-05',{mileagePayg:'excluded'});
+const included=calc(mileageCycle,'2026-10-05',{mileagePayg:'full'});
+const claim=(before,date='2026-10-05')=>calc(mileageCycle,date,{mileagePayg:'cents-per-km',mileagePriorKm:before});
+assert.equal(unconfirmed.mileagePayg.status,'unconfirmed');
+assert.match(unconfirmed.calculationWarnings.join(' '),/Mileage PAYG is unconfirmed/);
+assert.equal(excluded.tax,unconfirmed.tax);
+assert.equal(excluded.mileagePayg.status,'excluded');
+close(included.taxable-excluded.taxable,22.15);
+close(included.net+included.tax,excluded.net+excluded.tax);
+close(claim(0).mileagePayg.amount,1.58);
+close(claim('4990').mileagePayg.amount,13.05);
+close(claim(5000).mileagePayg.amount,22.15);
+assert.equal(claim('').mileagePayg.status,'unconfirmed');
+assert.equal(claim(-1).mileagePayg.status,'unconfirmed');
+assert.equal(claim(0,'2027-07-05').mileagePayg.status,'unconfirmed');
+close(claim(0,'2026-05-04').mileagePayg.amount,.34);
+
 const travel=calc([{code:'PS',type:'Picked-up OT',start:'09:00',finish:'14:30',offline:true,workedRosterLine:'PERTH'}],'2026-10-30');
 close(travel.breakdown.additionalHoursPay,449.0244);
 close(travel.breakdown.extrasPay,44.37);

@@ -13,7 +13,7 @@ const calculate=(row,overrides={},date='2026-10-08')=>
   PayCalc.calculate({days:[row],startDate:date,settings:{...settings,...overrides}});
 const close=(actual,expected,tolerance=.005)=>assert.ok(Math.abs(actual-expected)<=tolerance,`${actual} != ${expected}`);
 const allowance=(result,type)=>result.allowanceDetails.find(item=>item.type===type);
-for(const [code,distance] of [['SAFEK',80.8],['BH',22.6]]){
+for(const [code,distance] of [['SAFEK',76.4],['BH',22.6]]){
   const result=calculate({code},{},'2026-10-28');
   close(result.hours,10);
   close(result.breakdown.workedPay,443.70);
@@ -45,10 +45,11 @@ assert.equal(october.allowanceDetails.length,3);
 assert.equal(october.reimbursementDetails.length,1);
 assert.equal(bookOff.verifiedTrainingKm,80.8);
 
-assert.match(calculate({code:'SAFEK'}).reimbursementDetails[0].distanceMeta.status,/Payroll-confirmed/);
+assert.equal(calculate({code:'SAFEK'}).reimbursementDetails[0].distanceMeta.status,'Agreement Schedule 2');
 assert.equal(calculate({code:'SAFEK'},{homeLine:'FREMANTLE'}).reimbursementDetails[0].distance,76);
 assert.equal(calculate({code:'SAFEK'},{homeLine:'FREMANTLE'}).reimbursementDetails[0].distanceMeta.status,'Agreement Schedule 2');
-assert.equal(calculate({code:'SAFEK',verifiedTrainingKm:79}).reimbursementDetails[0].distance,79);
+assert.equal(calculate({code:'SAFEK',verifiedTrainingKm:80.8}).reimbursementDetails[0].distance,80.8);
+assert.equal(calculate({code:'SAFEK',verifiedTrainingKm:80.8}).reimbursementDetails[0].distanceMeta.status,'Entered verified payroll distance');
 
 const missing=calculate({code:'BH'},{homeLine:'MIDLAND'});
 assert.equal(missing.reimbursements,0);

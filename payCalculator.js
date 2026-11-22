@@ -74,6 +74,30 @@ window.PayCalc = (() => {
     const [,a,b]=scales[Number(settings.paygScale)===1?1:2].find(([limit])=>weekly<limit);
     return Math.max(0,Math.round(weekly*a-b)*2+extra);
   }
+  // ATO Schedule 1 allowance guidance, table 2. Use the payment income year.
+  function mileageForWithholding(details,total,settings,paymentDate,warnings){
+    if(!total||settings.mileagePayg==='excluded')return {amount:0,status:'excluded'};
+    if(settings.mileagePayg==='full')return {amount:total,status:'fully included'};
+    if(settings.mileagePayg==='cents-per-km'){
+      const prior=String(settings.mileagePriorKm??'').trim();
+      const km=Number(prior);
+      const rate=paymentDate>='2026-07-01'&&paymentDate<'2027-07-01'?.91:
+        paymentDate>='2024-07-01'&&paymentDate<'2026-07-01'?.88:null;
+      if(prior&&Number.isFinite(km)&&km>=0&&rate!=null){
+        let remaining=Math.max(0,5000-km);
+        const exempt=details.reduce((sum,item)=>{
+          const eligible=Math.min(remaining,item.distance);
+          remaining-=eligible;
+          return sum+Math.min(item.amount,eligible*Math.min(rate,item.rate));
+        },0);
+        return {amount:Math.round(Math.max(0,total-exempt)*100)/100,status:'ATO cents-per-km method'};
+      }
+      warnings.add('Mileage PAYG is unconfirmed. The estimate excludes mileage until prior business kilometres and an applicable ATO rate are available.');
+    }else{
+      warnings.add('Mileage PAYG is unconfirmed. The estimate excludes mileage until you select a verified treatment in settings.');
+    }
+    return {amount:0,status:'unconfirmed'};
+  }
   const qualifiesEarlyLate=(start,finish)=>{const s=mins(start),f=mins(finish);return (s>=61&&s<=239)||(f>=61&&f<=239)};
   const operationalShiftType=code=>{
     const c=String(code||'').trim().toUpperCase();
@@ -415,7 +439,7 @@ window.PayCalc = (() => {
             reimbursements+=amount;
             breakdown.reimbursements+=amount;
             reimbursementDetails.push({type:'Training kilometre reimbursement',date:iso(date),dayIndex:i,code:row.code,amount,distance,rate,
-              distanceMeta:{status:override?'Entered verified payroll distance':data.trainingDistanceSource?.[home]||'Agreement Schedule 2'}});
+              distanceMeta:{status:override?'Entered verified payroll distance':'Agreement Schedule 2'}});
           }
         }else if(!data.training&&isOffline&&row.offlineReason!=='cost-neutral'&&data.line!=='LEAVE'){
           const homeDesignated=designatedLineForRoster(settings.homeLine);
@@ -436,7 +460,7 @@ window.PayCalc = (() => {
               const mileage=distance*rate;
               reimbursements+=mileage;
               breakdown.reimbursements+=mileage;
-              reimbursementDetails.push({type:'Kilometre reimbursement',date:iso(date),dayIndex:i,code:row.code,amount:mileage,distance,rate,distanceMeta:distanceMeta(settings.homeLine,workedRoster,data.stationCode),withholdingStatus:'Unverified: existing exclusion from withholding retained',workedRosterLine:workedRoster});
+              reimbursementDetails.push({type:'Kilometre reimbursement',date:iso(date),dayIndex:i,code:row.code,amount:mileage,distance,rate,distanceMeta:distanceMeta(settings.homeLine,workedRoster,data.stationCode),workedRosterLine:workedRoster});
             }
           }
         }
@@ -477,13 +501,14 @@ window.PayCalc = (() => {
     });
 
     rows.forEach((info,i)=>{const dayGross=info.prePhGross||0;gross+=dayGross;hours+=info.dayHours||0;dayTotals.push({gross:dayGross,hours:info.dayHours||0,start:info.st||'',finish:info.fn||'',additionalPay:info.additionalPay||0,holidayName:holidays.get(iso(info.date))||''})});
-    const taxable=Math.max(0,gross-settings.lease-settings.gesb);
     const paymentDate=iso(paydayFor(startDate));
-    const tax=withholding(taxable,settings,paymentDate),net=taxable-tax-settings.postTax+reimbursements;
+    const mileagePayg=mileageForWithholding(reimbursementDetails,reimbursements,settings,paymentDate,calculationWarnings);
+    const ordinaryAfterPreTax=Math.max(0,gross-settings.lease-settings.gesb);
+    const taxable=ordinaryAfterPreTax+mileagePayg.amount;
+    const tax=withholding(taxable,settings,paymentDate),net=ordinaryAfterPreTax-tax-settings.postTax+reimbursements;
     const deductions={salaryPackaging:Number(settings.lease)||0,superPreTax:Number(settings.gesb)||0,postTax:Number(settings.postTax)||0};
     if(paymentDate<'2024-07-01'&&taxable)calculationWarnings.add('Historical PAYG before July 2024 is an annualised estimate.');
-    if(reimbursements)calculationWarnings.add('PAYG estimate excludes mileage. Check the payroll payment classification and business kilometres before relying on this withholding estimate.');
-    return {annualLeaveDetails,leaveUsage,calculationWarnings:[...calculationWarnings],deductions,gross,taxable,tax,hours,net,reimbursements,netHourly:hours?net/hours:0,dayTotals,breakdown,allowanceDetails,reimbursementDetails,publicHolidayDetails};
+    return {annualLeaveDetails,leaveUsage,calculationWarnings:[...calculationWarnings],deductions,gross,taxable,tax,hours,net,reimbursements,mileagePayg,netHourly:hours?net/hours:0,dayTotals,breakdown,allowanceDetails,reimbursementDetails,publicHolidayDetails};
   };
   return {calculate,paydayFor,dayGroup,waPublicHolidays,publicHolidayHours,leaveHoursUsed};
 })();

@@ -58,9 +58,8 @@ window.SHIFT_DATA = {"10":{"name":"Daglish","line":"FREMANTLE","designatedLine":
   };
   for(const [code,name] of Object.entries(perthNames))shifts[code].name=name;
   Object.assign(window.SHIFT_DATA,{
-    SAFEK:{name:'Kwinana Training',times:trainingTimes,
-      trainingDistanceSource:{ARMADALE:'Payroll-confirmed mileage (October 2026)'},training:{
-      JOONDALUP:83.4,MIDLAND:85.6,FREMANTLE:76,ARMADALE:80.8,
+    SAFEK:{name:'Kwinana Training',times:trainingTimes,training:{
+      JOONDALUP:83.4,MIDLAND:85.6,FREMANTLE:76,ARMADALE:76.4,
       SOUTHERN_MANDURAH:16,PERTH:78.8,NORTHERN_MANDURAH:39.4,AIRPORT:102.2
     }},
     BH:{name:'Guildford Training',times:trainingTimes,training:{

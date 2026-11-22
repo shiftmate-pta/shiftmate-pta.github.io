@@ -139,7 +139,7 @@
 </details>
 <details class="allowance-breakdown">
 <summary>
-<span>Mileage — withholding unverified</span>
+<span id="mileagePaygStatus">Mileage</span>
 <strong id="reimbursementsPay">$0.00</strong>
 </summary>
 <div class="allowance-breakdown-list" id="reimbursementBreakdownList"></div>
@@ -305,6 +305,13 @@
 <label>Other post-tax deductions<input id="postTax" step="0.01" type="number"/></label>
 <label>Resident PAYG scale<select id="paygScale"><option value="2">Tax-free threshold claimed</option><option value="1">Tax-free threshold not claimed</option></select></label>
 <label>Extra tax withheld / fortnight<input id="extraTax" step="0.01" type="number"/></label>
+<label>Mileage PAYG treatment<select id="mileagePayg">
+<option value="unconfirmed">Unconfirmed · estimate excludes mileage</option>
+<option value="excluded">Confirmed excluded from PAYG</option>
+<option value="full">Include all mileage in PAYG</option>
+<option value="cents-per-km">ATO business cents-per-km method</option>
+</select></label>
+<label>Business km before this pay in the income year<input id="mileagePriorKm" type="number" min="0" step="0.1" aria-describedby="mileagePriorKmHint"/><small id="mileagePriorKmHint">For the ATO cents-per-km method only. Enter 0 if this is the first applicable payment.</small></label>
 </div>
 </details>
 <details class="settings-section">
@@ -418,9 +425,9 @@
 <button class="nav-button" data-go="settings"><span class="nav-icon">⚙</span><span>Settings</span></button>
 </nav>
 <script src="agreementData.js?v=8.3"></script>
-<script src="shiftData.js?v=3.1.19-compliance"></script>
+<script src="shiftData.js?v=3.1.19-payroll"></script>
 <script src="annualLeaveLoading.js?v=3.1.13-pta-forms"></script>
-<script src="payCalculator.js?v=3.1.19-compliance"></script>
+<script src="payCalculator.js?v=3.1.19-payroll"></script>
 <script src="storage.js?v=3.1.18-shift-codes"></script>
 <script src="vendor/pdf-lib.min.js?v=1.17.1"></script>
 <script src="formPdfFields.js?v=2"></script>
@@ -442,6 +449,6 @@
 </dialog>
 <div id="pdfPrintPages" aria-hidden="true"></div>
 <script src="pdfViewer.js?v=2"></script>
-<script src="app.js?v=3.1.19-compliance"></script>
+<script src="app.js?v=3.1.19-payroll"></script>
 </body>
 </html>

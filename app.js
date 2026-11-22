@@ -2,7 +2,7 @@
 (() => {
   'use strict';
 
-  const defaults={paygScale:2,supervisorRate:50.89,supervisorRateEffective:"2026-10-12",loadingHistoryYear:'',loadingHistoryHours:'',loadingHistoryPaid:'',rateSource:'agreement',employmentRole:'',toCommencementDate:'',fcoAppointmentDate:'',stoPromotionDate:'',previousRoleBeforeSto:'',classificationOverride:true,classification:'',manualBaseRate:0,baseRate:0,wdMult:1,satMult:1.5,sunMult:2,addHoursMult:1.84,weekendOtMult:2,publicHolidayWorkedMult:2.5,hdRate:4.87,maRate:4.87,nightRate:5.77,lease:0,gesb:0,postTax:0,annualLeaveLoadingRate:12.55,extraTax:0,employeeName:'',serviceNumber:'',customPublicHolidays:'',homeLine:'',rosterLineNumber:0,rosterLineAnchorDate:'',otTarget:1};
+  const defaults={paygScale:2,mileagePayg:'unconfirmed',mileagePriorKm:'',supervisorRate:50.89,supervisorRateEffective:"2026-10-12",loadingHistoryYear:'',loadingHistoryHours:'',loadingHistoryPaid:'',rateSource:'agreement',employmentRole:'',toCommencementDate:'',fcoAppointmentDate:'',stoPromotionDate:'',previousRoleBeforeSto:'',classificationOverride:true,classification:'',manualBaseRate:0,baseRate:0,wdMult:1,satMult:1.5,sunMult:2,addHoursMult:1.84,weekendOtMult:2,publicHolidayWorkedMult:2.5,hdRate:4.87,maRate:4.87,nightRate:5.77,lease:0,gesb:0,postTax:0,annualLeaveLoadingRate:12.55,extraTax:0,employeeName:'',serviceNumber:'',customPublicHolidays:'',homeLine:'',rosterLineNumber:0,rosterLineAnchorDate:'',otTarget:1};
   const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
   const money=n=>new Intl.NumberFormat('en-AU',{style:'currency',currency:'AUD'}).format(Number(n)||0);
   const localISO=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -1155,7 +1155,7 @@
   let calendarCursor=new Date();
   calendarCursor=new Date(calendarCursor.getFullYear(),calendarCursor.getMonth(),1);
 
-  const stringSettings=new Set(['supervisorRateEffective','loadingHistoryYear','loadingHistoryHours','loadingHistoryPaid','rateSource','employmentRole','toCommencementDate','fcoAppointmentDate','stoPromotionDate','previousRoleBeforeSto','classification','employeeName','serviceNumber','customPublicHolidays','homeLine','rosterLineAnchorDate']);
+  const stringSettings=new Set(['mileagePayg','mileagePriorKm','supervisorRateEffective','loadingHistoryYear','loadingHistoryHours','loadingHistoryPaid','rateSource','employmentRole','toCommencementDate','fcoAppointmentDate','stoPromotionDate','previousRoleBeforeSto','classification','employeeName','serviceNumber','customPublicHolidays','homeLine','rosterLineAnchorDate']);
   const boolSettings=new Set(['classificationOverride']);
   const normaliseSettings=raw=>Object.fromEntries(Object.keys(defaults).map(k=>{
     if(stringSettings.has(k))return [k,String(raw?.[k]??defaults[k])];
@@ -1959,6 +1959,8 @@
   }
 
   function renderLeaveAudit(result){
+    const mileageLabel=$('#mileagePaygStatus');
+    mileageLabel.textContent=result.reimbursements?'Mileage · PAYG '+result.mileagePayg.status:'Mileage';
     const panel=$('#leaveCalculationAudit');if(!panel)return;
     panel.innerHTML=(result.annualLeaveDetails||[]).map(item=>`<div>${esc(item.date)}: ${item.hours} hrs × ${money(item.baseRate)} base + ${item.hours} hrs × $${Number(item.loadingRate).toFixed(6)} loading = ${money(item.amount)}${item.capped?' (cap applied)':''}</div>`).join('')+`<div>Pre-tax packaging: ${money(result.deductions?.salaryPackaging)}; pre-tax super: ${money(result.deductions?.superPreTax)}; post-tax deductions: ${money(result.deductions?.postTax)}</div>`+(result.calculationWarnings||[]).map(message=>`<p>${esc(message)}</p>`).join('');
   }
