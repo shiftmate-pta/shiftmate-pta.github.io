@@ -63,4 +63,13 @@ assert.equal(holidayCarryover.publicHolidayDetails[0].leaveCredit,8);
 assert.equal(holidayCarryover.hours,6);
 close(holidayCarryover.breakdown.publicHolidayPay,2*1.5*44.37,'holiday hours worked only');
 
+// Clause 6.1.4 provides one election for a holiday, including shifts spanning midnight.
+const mixedElection=PayCalc.calculate({startDate:'2026-09-27',days:[
+  {...day('30','Picked-up OT','20:00','02:00'),phBenefit:'cash'},
+  {...day('30','Picked-up OT','10:00','16:00'),phBenefit:'lieu'},
+],settings:{...settings,homeLine:'PERTH'}});
+close(mixedElection.breakdown.publicHolidayPay,8*1.5*44.37,'uncontested holiday work only with conflicting elections');
+assert.equal(mixedElection.publicHolidayDetails[0].leaveCredit,0);
+assert.match(mixedElection.calculationWarnings.join(' '),/both cash and leave-in-lieu/);
+
 console.log('payCalculator regression tests passed');

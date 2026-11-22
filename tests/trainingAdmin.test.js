@@ -45,7 +45,9 @@ assert.equal(october.allowanceDetails.length,3);
 assert.equal(october.reimbursementDetails.length,1);
 assert.equal(bookOff.verifiedTrainingKm,80.8);
 
+assert.match(calculate({code:'SAFEK'}).reimbursementDetails[0].distanceMeta.status,/Payroll-confirmed/);
 assert.equal(calculate({code:'SAFEK'},{homeLine:'FREMANTLE'}).reimbursementDetails[0].distance,76);
+assert.equal(calculate({code:'SAFEK'},{homeLine:'FREMANTLE'}).reimbursementDetails[0].distanceMeta.status,'Agreement Schedule 2');
 assert.equal(calculate({code:'SAFEK',verifiedTrainingKm:79}).reimbursementDetails[0].distance,79);
 
 const missing=calculate({code:'BH'},{homeLine:'MIDLAND'});

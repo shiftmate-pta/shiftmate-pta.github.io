@@ -49,7 +49,15 @@ window.PayCalc = (() => {
     const next=addDays(new Date(startDate+'T00:00:00'),14);
     return addDays(next,(3-next.getDay()+7)%7+7);
   };
-  // ATO Schedule 1 (NAT 1004), effective 1 July 2026, resident scales 1 and 2.
+  // Schedule 1 resident scales 1 and 2: F2024L00664 and F2025L00647 use these same coefficients.
+  const residentScales2024To2026={
+    1:[[150,.16,.16],[371,.2117,7.7550],[515,.189,-.6702],[932,.3227,68.2367],
+      [2246,.32,65.7202],[3303,.39,222.9510],[Infinity,.47,487.2587]],
+    2:[[361,0,0],[500,.16,57.8462],[625,.26,107.8462],[721,.18,57.8462],
+      [865,.189,64.3365],[1282,.3227,180.0385],[2596,.32,176.5769],
+      [3653,.39,358.3077],[Infinity,.47,650.6154]]
+  };
+  // ATO Schedule 1 (F2026L00716), effective 1 July 2026, resident scales 1 and 2.
   const residentScales={
     1:[[188,.15,.15],[371,.2084,11.0185],[515,.179,.1066],[932,.3227,74.1674],
       [2246,.32,71.6508],[3303,.39,228.8816],[Infinity,.47,493.1893]],
@@ -60,9 +68,10 @@ window.PayCalc = (() => {
   function withholding(taxable,settings,paymentDate){
     if(!taxable)return 0;
     const extra=Number(settings.extraTax)||0;
-    if(paymentDate<'2026-07-01')return Math.max(0,Math.round(annualTax(taxable*26)/26+extra));
+    if(paymentDate<'2024-07-01')return Math.max(0,Math.round(annualTax(taxable*26)/26+extra));
+    const scales=paymentDate<'2026-07-01'?residentScales2024To2026:residentScales;
     const weekly=Math.floor(taxable/2)+.99;
-    const [,a,b]=residentScales[settings.paygScale===1?1:2].find(([limit])=>weekly<limit);
+    const [,a,b]=scales[Number(settings.paygScale)===1?1:2].find(([limit])=>weekly<limit);
     return Math.max(0,Math.round(weekly*a-b)*2+extra);
   }
   const qualifiesEarlyLate=(start,finish)=>{const s=mins(start),f=mins(finish);return (s>=61&&s<=239)||(f>=61&&f<=239)};
@@ -221,6 +230,9 @@ window.PayCalc = (() => {
         }else breakdown.lwopPay+=0;
       }else if(data&&st&&fn&&row.type!=='Off'){
         const eligibleTraining=data.training&&String(settings.classification||settings.employmentRole||'').toUpperCase()!=='TRAINEE';
+        if(row.hd&&!row.actingSupervisor){
+          calculationWarnings.add('Standard higher duties use a fixed estimate. Confirm the allocated higher classification and rate under clause 2.9.');
+        }
         const effectiveBase=settings.baseRate+(row.hd?payrollRatesForDate(date,settings).hdRate:0);
         const actualStartMin=mins(st);
         const actualDuration=duration;
@@ -233,12 +245,12 @@ window.PayCalc = (() => {
           const overrideRate=Number(settings.supervisorRate);
           const supervisorRate=overrideDate&&shiftDate>=overrideDate&&overrideRate>0
             ?overrideRate:shiftDate>='2026-10-12'?50.89:0;
-          const estimated=row.actingSupervisor&&supervisorRate>0&&segments.every(({date})=>
+          const estimated=row.actingSupervisor&&supervisorRate>0&&actualDuration<=600&&segments.every(({date})=>
             date.getDay()!==0&&date.getDay()!==6&&!holidays.has(iso(date)));
           if(row.actingSupervisor){
             calculationWarnings.add(estimated
               ?'Acting-supervisor overtime uses a payslip-based estimate.'
-              :'Acting-supervisor overtime estimate is unavailable for this date or a weekend/public-holiday segment. Standard overtime rates were used.');
+              :'The provisional Acting Transit Supervisor tiers require an effective rate and a shift of up to 10 hours outside weekends and public holidays. Standard overtime rates were used.');
           }
           if(estimated){
             const workHours=actualDuration/60;
@@ -389,7 +401,8 @@ window.PayCalc = (() => {
         if(eligibleTraining){
           const enteredKm=row.verifiedTrainingKm;
           const override=enteredKm!=null&&enteredKm!==''&&Number.isFinite(Number(enteredKm))&&Number(enteredKm)>=0;
-          const distance=override?Number(enteredKm):data.training[designatedLineForRoster(settings.homeLine)];
+          const home=designatedLineForRoster(settings.homeLine);
+          const distance=override?Number(enteredKm):data.training[home];
           const travelPay=settings.baseRate;
           extras+=travelPay;
           dayGross+=travelPay;
@@ -402,7 +415,7 @@ window.PayCalc = (() => {
             reimbursements+=amount;
             breakdown.reimbursements+=amount;
             reimbursementDetails.push({type:'Training kilometre reimbursement',date:iso(date),dayIndex:i,code:row.code,amount,distance,rate,
-              distanceMeta:{status:override?'Entered verified payroll distance':'Agreement Schedule 2'}});
+              distanceMeta:{status:override?'Entered verified payroll distance':data.trainingDistanceSource?.[home]||'Agreement Schedule 2'}});
           }
         }else if(!data.training&&isOffline&&row.offlineReason!=='cost-neutral'&&data.line!=='LEAVE'){
           const homeDesignated=designatedLineForRoster(settings.homeLine);
@@ -446,16 +459,19 @@ window.PayCalc = (() => {
     phBuckets.forEach(bucket=>{
       const cashItems=bucket.items.filter(x=>x.benefit!=='lieu'),lieuItems=bucket.items.filter(x=>x.benefit==='lieu');
       let amount=0,leaveCredit=0;
-      if(cashItems.length){
+      const conflictingElection=cashItems.length>0&&lieuItems.length>0;
+      if(conflictingElection){
+        calculationWarnings.add(bucket.date+' '+bucket.name+' has both cash and leave-in-lieu selections. Confirm the election for the holiday. The estimate includes worked holiday pay only.');
+        amount=bucket.items.reduce((sum,item)=>sum+item.hours*item.effectiveBase*1.5,0);
+      }else if(cashItems.length){
         const workedComponent=cashItems.reduce((s,x)=>s+x.hours*x.effectiveBase*1.5,0);
         const cashHours=cashItems.reduce((s,x)=>s+x.hours,0),base= cashItems[0].effectiveBase;
         const additionalComponent=Math.max(cashHours,8)*base;amount+=workedComponent+additionalComponent;
-      }
-      if(lieuItems.length){
+      }else if(lieuItems.length){
         amount+=lieuItems.reduce((s,x)=>s+x.hours*x.effectiveBase*1.5,0);leaveCredit=Math.max(lieuItems.reduce((s,x)=>s+x.hours,0),8);
       }
       breakdown.publicHolidayPay+=amount;
-      publicHolidayDetails.push({date:bucket.date,name:bucket.name,type:leaveCredit?'Worked – leave in lieu':'Worked – cash payment',hours:bucket.hours,amount,leaveCredit});
+      publicHolidayDetails.push({date:bucket.date,name:bucket.name,type:conflictingElection?'Worked – election unresolved':leaveCredit?'Worked – leave in lieu':'Worked – cash payment',hours:bucket.hours,amount,leaveCredit});
       const shares=bucket.items.reduce((m,x)=>(m[x.dayIndex]=(m[x.dayIndex]||0)+x.hours,m),{}),total=bucket.hours||1;
       Object.entries(shares).forEach(([idx,h])=>{rows[idx].prePhGross+=amount*(h/total)});
     });
@@ -465,7 +481,8 @@ window.PayCalc = (() => {
     const paymentDate=iso(paydayFor(startDate));
     const tax=withholding(taxable,settings,paymentDate),net=taxable-tax-settings.postTax+reimbursements;
     const deductions={salaryPackaging:Number(settings.lease)||0,superPreTax:Number(settings.gesb)||0,postTax:Number(settings.postTax)||0};
-    if(reimbursements)calculationWarnings.add('Mileage withholding is unverified; the existing exclusion is retained.');
+    if(paymentDate<'2024-07-01'&&taxable)calculationWarnings.add('Historical PAYG before July 2024 is an annualised estimate.');
+    if(reimbursements)calculationWarnings.add('PAYG estimate excludes mileage. Check the payroll payment classification and business kilometres before relying on this withholding estimate.');
     return {annualLeaveDetails,leaveUsage,calculationWarnings:[...calculationWarnings],deductions,gross,taxable,tax,hours,net,reimbursements,netHourly:hours?net/hours:0,dayTotals,breakdown,allowanceDetails,reimbursementDetails,publicHolidayDetails};
   };
   return {calculate,paydayFor,dayGroup,waPublicHolidays,publicHolidayHours,leaveHoursUsed};

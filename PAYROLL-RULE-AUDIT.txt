@@ -1,0 +1,114 @@
+ShiftMate 3.1.19 payroll rule audit
+Basis: full-time metropolitan Transit Officers, with user-confirmed roster,
+classification, employment circumstances and payroll declarations. The WAIRC
+register lists the 2023 agreement in force. Confirm any later written roster
+arrangements or employer directives before relying on affected estimates.
+
+Agreement: https://downloads.wairc.wa.gov.au/agreements/pub070.pdf
+Register: https://www.wairc.wa.gov.au/resources/agreements?id=PUB070
+ATO 2026 Schedule 1: https://www.legislation.gov.au/F2026L00716/latest/text
+ATO 2025 Schedule 1: https://www.legislation.gov.au/F2025L00647/asmade/2025-06-04/text/original/pdf
+ATO 2024 Schedule 1: https://www.legislation.gov.au/F2024L00664/asmade/2024-06-11/text/original/pdf
+ATO allowance withholding: https://www.ato.gov.au/businesses-and-organisations/hiring-and-paying-your-workers/payg-withholding/payments-you-need-to-withhold-from/payments-to-employees/allowances-and-reimbursements/withholding-for-allowances
+ATO salary sacrifice: https://www.ato.gov.au/businesses-and-organisations/hiring-and-paying-your-workers/fringe-benefits-tax/salary-sacrificing
+WA motor vehicle circular: https://www.wa.gov.au/media/164105/download?inline=
+
+Ordinary pay and weekends
+  Clauses 1.6.4, 3.1.1, 3.1.3, 3.1.7 and 4.1.1; Schedule 1. Use
+  the effective classification's weekly base divided by 40 for full-time
+  ordinary hours. Split at midnight, with 150% Saturday and 200% Sunday
+  defaults in place of other shift penalties. Manual rates and multipliers
+  require a verified basis. Coverage: payCalculator and annualLeaveLoading
+  unit suites and five-period replay.
+
+Overtime and higher duties
+  Clauses 3.2.1–3.2.6. Use posted ordinary hours and separately entered
+  additional shifts. Ordinary Transit Officer overtime is 184% on weekdays
+  and 200% on weekends under standard settings. Holiday work uses clause 6.1.
+  Friday/Saturday built-in overtime inferred from operational shift codes
+  requires the applicable posted roster or written arrangement. Callback
+  minima under clause 3.2.7 and insufficient rest under clause 3.4.3 are
+  not established by the generic overtime flag.
+  Clause 2.9 requires the assigned higher-position rate and substantial,
+  unshared responsibilities. The fixed standard uplift is provisional.
+  Acting Transit Supervisor is a separate, explicitly selected estimate.
+  The configurable rate and its effective date remain supported. The
+  observed default of $50.89 and 150%/200% split cover weekday picked-up
+  overtime through 10 hours only. Holiday or weekend segments and longer
+  shifts use the standard model with a warning. No supervisor instrument
+  was available to confirm the rates. Coverage: payrollCorrections,
+  payCalculator, rosterProjection and browser upgrade.
+
+Shift allowances and training
+  Clauses 3.1.3, 3.1.7(c), 5.1.1–5.1.6 and 1.6.13. Use ordinary
+  roster time to classify early morning (04:00–05:30), afternoon (start
+  before 18:00 and ordinary finish from 18:30), or night (18:00–03:59 start).
+  The separate per-shift amount applies to qualifying ordinary endpoints
+  01:01–03:59, subject to the weekend rule. Rates are 13.5% and 16% of the
+  hourly reference rate, with the latter also used for the per-shift amount.
+  October $4.87 afternoon and $5.77 additional allowance inputs were
+  corroborated in payroll records; the current PTA rate notice was not
+  available. Station fractional-hour rounding remains a payroll convention
+  pending a directive. Training and administration use worked hours for
+  the allowance, excluding booked-off leave.
+  Clause 4.3 pays base plus 15% for employer-directed supplementary
+  training after initial training. The weekday loading is applied to
+  worked ordinary hours, separately from the section 5.1 shift allowance.
+  The interaction with weekend penalties and additional hours remains
+  unresolved. Coverage: trainingAdmin unit/browser and payCalculator.
+
+Travel and vehicle payments
+  Clauses 5.2.1–5.2.5, 3.5.8(d), and Schedule 2. Directed off-line work
+  pays one base hour plus return kilometres, subject to eligibility and
+  cost-neutral roster rules. Employer-directed supplementary training
+  outside designated lines uses clause 5.2.5 for non-trainees.
+  Guildford is 22.6 km return from the Armadale home-line reference station
+  in Schedule 2. Use 98 cents/km for voluntary metropolitan vehicle use
+  from 1 July 2026 under Circular 6/2026. Armadale SAFEK 80.8 km and Perth
+  10.7 km are payroll-evidenced route overrides, with the SAFEK manual
+  distance still taking precedence. No inference of formal Schedule 2
+  amendment is made. Coverage: trainingAdmin and offlineAllowanceCoverage.
+
+Leave and public holidays
+  Clauses 6.3, 6.5 and 6.5.7 with the August 2026 PTA/RTBU arrangement
+  already modelled by LIVE. Pay approved leave hours at the applicable
+  base; use the substantive classification and date-effective loading
+  and annual cap. Prior loading history and future cap data may be needed.
+  For partial book-offs preserve the posted shift, separate worked time
+  from approved leave, and apply loading only to eligible annual leave.
+  Clause 6.2 ADL is approved Easter Sunday additional leave at base rate,
+  available from Easter Sunday within that calendar year. A roster ADL
+  entry assumes employer approval and available entitlement; the app does
+  not administer leave balances or employment eligibility.
+  Clauses 6.1.2–6.1.9 govern substitution, worked holiday pay and
+  approved leave. Split work by calendar day. Pay 150% worked holiday
+  hours, then apply the one cash or agreed leave-in-lieu election and
+  applicable minimum. Conflicting elections show worked pay only and a
+  warning. Check any statutory or employer substitution and unusual
+  minimum/cap cases separately. Coverage: annualLeaveLoading,
+  payCalculator, payrollCorrections, trainingAdmin and upgrade tests.
+
+PAYG and deductions
+  Use payment date, resident scale 1 or 2, and Schedule 1 coefficients.
+  Divide fortnightly taxable earnings by two, discard cents and add
+  99 cents, apply a*x-b, round to the nearest dollar once, then double.
+  2024 and 2025 instruments have identical supported coefficients; the
+  2026 instrument applies from 1 July 2026. Before July 2024 the app
+  labels its legacy annualised estimate. Ordinary wages, overtime,
+  penalties, leave/loading and taxable allowances enter the withholding
+  base. Effective pre-tax arrangements reduce that base; configured
+  additional withholding increases PAYG; post-tax deductions reduce
+  cash net only. Other scales, Medicare adjustments, study/training
+  loans, tax offsets and special back-payment methods require separate
+  assessment. No additional withholding is inferred from a payslip.
+  The mileage component is still excluded in the estimate and flagged.
+  A qualifying private-car cents/km allowance generally requires
+  withholding on the rate excess for up to 5,000 business kilometres and
+  on all amounts above the limit. The 2026–27 approved rate is 91 cents.
+  Reimbursements of actual expense and full-withholding allowances have
+  different treatments. The payroll/STP classification, trip conditions
+  and cumulative kilometres must be established. Gross includes mileage
+  once for reconciliation; withholding treatment is separate from
+  year-end assessability. Coverage: payrollCorrections Schedule 1 sample
+  rows, effective-date boundary and deductions tests; five-period
+  independent calculation and same-origin upgrade.

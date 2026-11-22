@@ -58,6 +58,10 @@ close(updated.dayTotals[1].additionalPay,962);
 const weekend=calc([{...supervisor,start:'22:00',finish:'02:00'}],'2026-10-16');
 close(weekend.gross,2*49.24*1.84+2*49.24*2);
 assert.ok(weekend.calculationWarnings.some(message=>message.includes('weekend')));
+const extended={...supervisor,finish:'02:30'};
+const standardExtended=calc([{...extended,actingSupervisor:false}],'2026-10-12');
+close(calc([extended],'2026-10-12').gross,standardExtended.gross);
+assert.ok(calc([extended],'2026-10-12').calculationWarnings.some(message=>message.includes('up to 10 hours')));
 
 // Isolate withholding from roster and reimbursement classification.
 const grossAt=(gross,overrides={},start='2026-10-04')=>{
@@ -73,7 +77,21 @@ for(const [gross,tax,net] of [[4443.78,852,2934.43],[6723.59,1644,4422.24],[4556
 assert.equal(grossAt(3688,{lease:0,gesb:0,paygScale:2}).tax,818);
 assert.equal(grossAt(3688,{lease:0,gesb:0,paygScale:1}).tax,1038);
 assert.equal(grossAt(4443.78,{},'2026-06-21').tax,852,'payment falls after 1 July despite June cycle start');
-assert.equal(grossAt(4443.78,{},'2026-05-31').tax,850,'preserve historical method');
+// F2025L00647 Schedule 1, fortnightly sample data and effective-date boundary.
+assert.equal(grossAt(3688,{lease:0,gesb:0,paygScale:2},'2026-05-31').tax,828);
+assert.equal(grossAt(3688,{lease:0,gesb:0,paygScale:1},'2026-05-31').tax,1050);
+assert.equal(grossAt(3688,{lease:0,gesb:0,paygScale:2},'2025-05-18').tax,828);
+assert.equal(grossAt(3688,{lease:0,gesb:0,paygScale:2},'2026-06-07').tax,818);
+assert.equal(grossAt(3688,{lease:0,gesb:0,paygScale:2},'2026-06-14').tax,818);
+// F2026L00716 Schedule 1, fortnightly sample rows near published thresholds.
+for(const [gross,scale1,scale2] of [[722,128,0],[724,130,0],[1074,198,52],[1076,200,54],[2562,678,458],[5190,1568,1298],[5192,1568,1298]]){
+  assert.equal(grossAt(gross,{lease:0,gesb:0,paygScale:'1'}).tax,scale1);
+  assert.equal(grossAt(gross,{lease:0,gesb:0,paygScale:2}).tax,scale2);
+}
+const packaged=grossAt(3688+646.95,{postTax:10.40,extraTax:12,paygScale:2});
+close(packaged.taxable,3688);
+assert.equal(packaged.tax,830);
+close(packaged.net,2847.60);
 assert.equal(grossAt(4443.78,{extraTax:12}).tax,864);
 
 const travel=calc([{code:'PS',type:'Picked-up OT',start:'09:00',finish:'14:30',offline:true,workedRosterLine:'PERTH'}],'2026-10-30');
